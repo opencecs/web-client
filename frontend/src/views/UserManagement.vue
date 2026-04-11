@@ -142,8 +142,8 @@ const auth = useAuthStore()
 const users = ref([])
 const showCreate = ref(false)
 const editingUser = ref(null)
-const expiryMode = ref('never')
-const expiryHours = ref(24)
+const expiryMode = ref('hours')
+const expiryHours = ref(1)
 const expiryDate = ref(null)
 const form = reactive({ username: '', password: '', confirmPassword: '', role: 'user' })
 
@@ -161,8 +161,8 @@ function showCreateDialog() {
   form.password = ''
   form.confirmPassword = ''
   form.role = 'user'
-  expiryMode.value = 'never'
-  expiryHours.value = 24
+  expiryMode.value = 'hours'
+  expiryHours.value = 1
   expiryDate.value = null
   showCreate.value = true
 }

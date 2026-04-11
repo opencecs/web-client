@@ -229,7 +229,9 @@
       </template>
       <template v-else-if="taskPhase === 'creating'">
         <el-progress :percentage="createTotal ? Math.round(createCurrent / createTotal * 100) : 0" :stroke-width="12" :show-text="false" striped striped-flow />
-        <div style="color: #999; font-size: 12px; margin-top: 6px">正在创建 {{ createCurrent }}/{{ createTotal }} (坑位 {{ createSlotNum }})...</div>
+        <div style="color: #999; font-size: 12px; margin-top: 6px">
+          {{ createSlotNum > 0 ? `正在创建 ${createCurrent}/${createTotal} (坑位 ${createSlotNum})...` : `等待设备就绪，准备创建下一个 (${createCurrent}/${createTotal})...` }}
+        </div>
       </template>
       <template v-else-if="taskPhase === 'done' || taskPhase === 'failed'">
         <el-progress :percentage="100" :status="taskPhase === 'failed' ? 'exception' : 'success'" :stroke-width="12" />
@@ -385,7 +387,7 @@ function getSlotTitle(slot) {
 const filteredMirrors = computed(() => {
   return mirrors.value
     .filter(m => m.os_ver === androidVersion.value)
-    .sort((a, b) => (b.name || '').localeCompare(a.name || ''))
+    .sort((a, b) => (b.name || '').localeCompare(a.name || '', undefined, { numeric: true }))
 })
 
 // 按安卓版本过滤机型
@@ -544,7 +546,7 @@ async function doCreate() {
     const pullOk = await doPullImage(form.imageUrl)
     if (!pullOk) return
 
-    // 逐坑位创建容器（每次间隔 1 秒，避免 SDK 过载）
+    // 逐坑位创建容器
     taskPhase.value = 'creating'
     const slots = [...selectedSlots.value].sort((a, b) => a - b)
     const alias = form.alias?.trim()
@@ -558,24 +560,23 @@ async function doCreate() {
       createSlotNum.value = slotNum
       try {
         const body = buildBody()
-        body.name = generateName() // 每个坑位独立名称
+        body.name = generateName()
         body.indexNum = slotNum
-        // 如果该坑位有运行中容器，强制不自启动
         const hasRunning = device.containers.some(c => c.indexNum === slotNum && c.status === 'running')
         if (hasRunning) body.start = false
         const res = await device.request('sdk:createContainer', body, 120000)
         const resData = res.data || {}
         if (resData.code && resData.code !== 0) { fail++; failedSlots.push(slotNum); continue }
-        // 创建成功后设置别名
         if (alias) {
           const displayAlias = slots.length > 1 ? `${alias}-${slotNum}` : alias
           try { await device.setAlias(body.name, displayAlias) } catch {}
         }
         success++
       } catch { fail++; failedSlots.push(slotNum) }
-      // 非最后一个坑位，等待 1 秒再创建下一个
+      // 非最后一个坑位，等待设备就绪
       if (i < slots.length - 1) {
-        await new Promise(r => setTimeout(r, 1000))
+        createSlotNum.value = -1
+        await new Promise(r => setTimeout(r, 2000))
       }
     }
     if (fail === 0) {

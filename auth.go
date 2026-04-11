@@ -569,7 +569,8 @@ func (s *AuthService) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 func (s *AuthService) CheckExpiry(hub *WSHub, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	for range ticker.C {
-		rows, err := s.db.Query("SELECT id, username FROM users WHERE enabled = 1 AND expires_at IS NOT NULL AND expires_at < ?", time.Now())
+		now := time.Now().UTC().Format(time.RFC3339)
+		rows, err := s.db.Query("SELECT id, username FROM users WHERE enabled = 1 AND expires_at IS NOT NULL AND expires_at < ?", now)
 		if err != nil {
 			continue
 		}

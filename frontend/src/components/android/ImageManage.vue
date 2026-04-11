@@ -128,20 +128,11 @@ const filteredMirrors = computed(() => {
   if (onlineFilter.value !== 'all') {
     list = list.filter(m => m.os_ver === onlineFilter.value)
   }
-  // 按版本号降序排序（名称中的数字越大越靠前）
+  // 按名称降序排序（版本号大的排前面）
   return [...list].sort((a, b) => {
-    const va = extractVersion(a.name || a.url || '')
-    const vb = extractVersion(b.name || b.url || '')
-    return vb - va
+    return (b.name || b.url || '').localeCompare(a.name || a.url || '', undefined, { numeric: true })
   })
 })
-
-// 从镜像名称中提取版本号用于排序
-function extractVersion(name) {
-  const matches = name.match(/(\d+)/g)
-  if (!matches || !matches.length) return 0
-  return parseInt(matches[matches.length - 1], 10) || 0
-}
 
 function getImageShortName(url) {
   if (!url) return ''

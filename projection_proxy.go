@@ -88,6 +88,23 @@ func (p *ProjectionProxy) evictExisting(indexNum int) {
 	}
 }
 
+// EvictUser 踢掉指定用户的所有投屏连接（账号过期/禁用时调用）
+func (p *ProjectionProxy) EvictUser(username string) {
+	p.active.Range(func(key, val interface{}) bool {
+		sess := val.(*activeSession)
+		if sess.username == username {
+			indexNum := key.(int)
+			log.Printf("[投屏代理] 踢掉用户 %s 的投屏 (坑位 %d)", username, indexNum)
+			sess.frontConn.WriteMessage(websocket.TextMessage, []byte(`{"id":"evicted","data":"账号已过期"}`))
+			time.Sleep(200 * time.Millisecond)
+			closeDeviceConn(sess.deviceConn)
+			sess.frontConn.Close()
+			p.active.Delete(key)
+		}
+		return true
+	})
+}
+
 // --- 预热连接池 ---
 
 // StartWarmPool 启动预热连接池，监听容器列表变化并维护连接

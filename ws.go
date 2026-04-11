@@ -268,7 +268,7 @@ func (h *WSHub) KickUser(username string) {
 
 func (h *WSHub) KickUserWithReason(username, reason string) {
 	h.mu.RLock()
-	defer h.mu.RUnlock()
+	var toClose []*WSClient
 	for client := range h.clients {
 		if client.username == username {
 			msg, _ := json.Marshal(map[string]interface{}{
@@ -279,8 +279,22 @@ func (h *WSHub) KickUserWithReason(username, reason string) {
 			case client.send <- msg:
 			default:
 			}
+			toClose = append(toClose, client)
+		}
+	}
+	h.mu.RUnlock()
+
+	// 等消息发出后再关闭连接
+	if len(toClose) > 0 {
+		time.Sleep(500 * time.Millisecond)
+		for _, client := range toClose {
 			client.conn.Close()
 		}
+	}
+
+	// 同时踢掉该用户的投屏连接
+	if h.projProxy != nil {
+		go h.projProxy.EvictUser(username)
 	}
 }
 

@@ -84,6 +84,10 @@ export const useDeviceStore = defineStore('device', () => {
             const reason = msg.data?.reason
             if (reason === 'password_changed') {
               alert('密码已被修改，请重新登录')
+            } else if (reason === 'expired') {
+              alert('账号已到期，请联系管理员续期')
+            } else if (reason === 'disabled') {
+              alert('账号已被禁用')
             } else if (reason === 'logout') {
               // 自己退出的，不弹提示
             } else {

@@ -183,7 +183,9 @@ func (c *WSClient) sdkAction(req WSRequest, method, path string, body interface{
 		if body != nil {
 			httpReq.Header.Set("Content-Type", "application/json")
 		}
-		resp, err := c.hub.httpClient.Do(httpReq)
+		// 长超时操作使用独立 client，不受 hub.httpClient 的 10 秒限制
+		longClient := &http.Client{}
+		resp, err := longClient.Do(httpReq)
 		if err != nil {
 			c.sendResponse(req.ID, false, "设备连接失败: "+err.Error(), nil)
 			return

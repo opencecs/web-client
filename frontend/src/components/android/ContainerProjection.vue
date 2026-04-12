@@ -49,7 +49,6 @@
       </div>
     </div>
     <!-- 底部拖拽调整大小 -->
-    <div class="projection-resize" @mousedown.stop="onResizeStart"></div>
   </div>
 </template>
 
@@ -80,8 +79,7 @@ const pos = reactive({
   h: 700
 })
 let dragging = false
-let resizing = false
-let startX = 0, startY = 0, startPosX = 0, startPosY = 0, startW = 0, startH = 0
+let startX = 0, startY = 0, startPosX = 0, startPosY = 0
 
 const floatStyle = computed(() => ({
   left: pos.x + 'px',
@@ -99,7 +97,7 @@ function sendCmd(action) {
 
 // 拖动
 function onDragStart(e) {
-  if (e.target.closest('.projection-btn') || e.target.closest('.projection-resize') || e.target.closest('.projection-footer') || e.target.closest('.projection-sidebar') || e.target.closest('.sms-overlay')) return
+  if (e.target.closest('.projection-btn') || e.target.closest('.projection-footer') || e.target.closest('.projection-sidebar') || e.target.closest('.sms-overlay')) return
   dragging = true
   startX = e.clientX; startY = e.clientY
   startPosX = pos.x; startPosY = pos.y
@@ -117,24 +115,6 @@ function onDragEnd() {
   document.removeEventListener('mouseup', onDragEnd)
 }
 
-// 缩放
-function onResizeStart(e) {
-  resizing = true
-  startX = e.clientX; startY = e.clientY
-  startW = pos.w; startH = pos.h
-  document.addEventListener('mousemove', onResizeMove)
-  document.addEventListener('mouseup', onResizeEnd)
-}
-function onResizeMove(e) {
-  if (!resizing) return
-  pos.w = Math.max(280, startW + (e.clientX - startX))
-  pos.h = Math.max(400, startH + (e.clientY - startY))
-}
-function onResizeEnd() {
-  resizing = false
-  document.removeEventListener('mousemove', onResizeMove)
-  document.removeEventListener('mouseup', onResizeEnd)
-}
 
 // 端口提取
 function getPort(container, containerPort, fallbackOffset) {
@@ -160,7 +140,7 @@ async function loadPlayerUrl() {
       const params = new URLSearchParams({
         shost: window.location.hostname,
         sport: currentPort,
-        q: '1', v: 'h264',
+        q: '5', v: 'h264',
         rtc_i: window.location.hostname,
         rtc_p: udpPort || currentPort,
         container_name: props.container.name || '',
@@ -188,7 +168,7 @@ async function loadPlayerUrl() {
     const params = new URLSearchParams({
       shost: window.location.hostname,
       sport: currentPort,
-      q: '1', v: 'h264',
+      q: '5', v: 'h264',
       rtc_i: window.location.hostname,
       rtc_p: currentPort,
       container_name: props.container.name || '',
@@ -221,7 +201,7 @@ async function openNewWindow() {
   const params = new URLSearchParams({
     shost: window.location.hostname,
     sport: currentPort,
-    q: '1', v: 'h264',
+    q: '5', v: 'h264',
     rtc_i: window.location.hostname,
     rtc_p: udpPort || currentPort,
     container_name: props.container.name || '',
@@ -389,6 +369,10 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  contain: layout style;
 }
 .projection-header {
   display: flex;
@@ -422,6 +406,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   border: none;
+  transform: translateZ(0);
 }
 .projection-main {
   flex: 1;
@@ -432,6 +417,8 @@ onBeforeUnmount(() => {
   flex: 1;
   overflow: hidden;
   background: #000;
+  transform: translateZ(0);
+  contain: strict;
 }
 .projection-sidebar {
   width: 42px;
@@ -522,14 +509,4 @@ onBeforeUnmount(() => {
 }
 .android-btn:hover { background: #333; color: #fff; }
 .android-btn:active { background: #444; }
-.projection-resize {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 16px;
-  height: 16px;
-  cursor: nwse-resize;
-  background: linear-gradient(135deg, transparent 50%, #666 50%);
-  border-radius: 0 0 8px 0;
-}
 </style>

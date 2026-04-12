@@ -82,24 +82,34 @@ func (c *WSClient) handleAliasAction(req WSRequest) {
 
 	switch req.Action {
 	case "alias:list":
-		aliases := c.hub.alias.GetAllAliases()
+		aliases := c.hub.buildAliasMap()
 		c.sendResponse(req.ID, true, "ok", map[string]interface{}{"aliases": aliases})
 	case "alias:set":
 		name := getStr(req.Data, "name")
 		alias := getStr(req.Data, "alias")
-		if err := c.hub.alias.SetAlias(name, alias); err != nil {
+		slot := c.getContainerSlot(name)
+		if slot <= 0 {
+			c.sendResponse(req.ID, false, "找不到容器", nil)
+			return
+		}
+		if err := c.hub.alias.SetAlias(slot, alias); err != nil {
 			c.sendResponse(req.ID, false, "设置别名失败: "+err.Error(), nil)
 		} else {
 			c.sendResponse(req.ID, true, "ok", nil)
-			c.hub.Broadcast("aliases:list", c.hub.alias.GetAllAliases())
+			c.hub.Broadcast("aliases:list", c.hub.buildAliasMap())
 		}
 	case "alias:delete":
 		name := getStr(req.Data, "name")
-		if err := c.hub.alias.DeleteAlias(name); err != nil {
+		slot := c.getContainerSlot(name)
+		if slot <= 0 {
+			c.sendResponse(req.ID, false, "找不到容器", nil)
+			return
+		}
+		if err := c.hub.alias.DeleteAlias(slot); err != nil {
 			c.sendResponse(req.ID, false, "删除别名失败: "+err.Error(), nil)
 		} else {
 			c.sendResponse(req.ID, true, "ok", nil)
-			c.hub.Broadcast("aliases:list", c.hub.alias.GetAllAliases())
+			c.hub.Broadcast("aliases:list", c.hub.buildAliasMap())
 		}
 	}
 }

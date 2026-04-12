@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -22,17 +23,23 @@ type activeSession struct {
 	done       chan struct{} // 关闭时通知
 }
 
-// closeDeviceConn 优雅关闭与容器的 WebSocket 连接
-// 先发送 WebSocket Close 帧通知容器释放信令会话，再关闭底层 TCP
-// 避免产生 FIN_WAIT2 僵尸连接导致容器信令服务卡死不再发送 SDP offer
+// closeDeviceConn 关闭与容器的 WebSocket 连接
+// 先发送 Close 帧通知容器释放信令会话，再用 SO_LINGER(0) 强制 RST
+// 避免容器未完成关闭握手导致 FIN_WAIT2 僵尸连接（会阻塞后续投屏）
 func closeDeviceConn(conn *websocket.Conn) {
 	if conn == nil {
 		return
 	}
-	// 发送关闭帧，让容器端正确走完 WebSocket 关闭握手
+	// 发送 WebSocket Close 帧，通知容器释放信令会话
 	conn.WriteControl(websocket.CloseMessage,
 		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
 		time.Now().Add(2*time.Second))
+	// 等待容器接收 Close 帧（localhost 几乎无延迟）
+	time.Sleep(50 * time.Millisecond)
+	// 强制 RST 关闭，避免 FIN_WAIT2（容器信令服务经常不完成关闭握手）
+	if tcpConn, ok := conn.UnderlyingConn().(*net.TCPConn); ok {
+		tcpConn.SetLinger(0)
+	}
 	conn.Close()
 }
 
@@ -408,17 +415,21 @@ func (p *ProjectionProxy) HandleProjection(w http.ResponseWriter, r *http.Reques
 	}
 	defer frontConn.Close()
 
-	// 释放该坑位的预热连接（避免与容器信令冲突）
+	// 释放该坑位的预热连接（token 请求时已提前释放，这里兜底）
 	p.takeWarm(indexNum)
 
 	// 踢掉该坑位上已有的连接
 	p.evictExisting(indexNum)
 
-	// 连接容器（服务端重试一次，避免浏览器整轮重连）
-	deviceConn, _, err := websocket.DefaultDialer.Dial(targetURL, nil)
+	// 连接容器（大缓冲低延迟，服务端重试一次）
+	projDialer := websocket.Dialer{
+		ReadBufferSize:  32 * 1024,
+		WriteBufferSize: 32 * 1024,
+	}
+	deviceConn, _, err := projDialer.Dial(targetURL, nil)
 	if err != nil {
 		time.Sleep(500 * time.Millisecond)
-		deviceConn, _, err = websocket.DefaultDialer.Dial(targetURL, nil)
+		deviceConn, _, err = projDialer.Dial(targetURL, nil)
 		if err != nil {
 			log.Printf("[投屏代理] 连接容器失败 (坑位 %d): %v", indexNum, err)
 			frontConn.WriteMessage(websocket.CloseMessage,
@@ -458,6 +469,8 @@ func (p *ProjectionProxy) HandleProjection(w http.ResponseWriter, r *http.Reques
 	log.Printf("[投屏代理] 用户 %s 连接坑位 %d (端口 %d, 容器 %s)", username, indexNum, targetPort, containerName)
 
 	var sessionUfrag string
+	var deviceWriteMu sync.Mutex // 保护 deviceConn 并发写入
+	var frontWriteMu sync.Mutex  // 保护 frontConn 并发写入
 
 	// 浏览器端 ping 心跳（30秒一次）
 	pingDone := make(chan struct{})
@@ -468,10 +481,37 @@ func (p *ProjectionProxy) HandleProjection(w http.ResponseWriter, r *http.Reques
 		for {
 			select {
 			case <-ticker.C:
+				frontWriteMu.Lock()
 				frontConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-				if err := frontConn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				err := frontConn.WriteMessage(websocket.PingMessage, nil)
+				frontWriteMu.Unlock()
+				if err != nil {
 					return
 				}
+			}
+		}
+	}()
+
+	// 容器端心跳（防止浏览器后台时容器读超时断开）
+	// 延迟 15 秒启动，等待 SDP 信令交换完成，避免干扰容器信令状态
+	deviceHeartDone := make(chan struct{})
+	go func() {
+		defer close(deviceHeartDone)
+		time.Sleep(15 * time.Second)
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				deviceWriteMu.Lock()
+				deviceConn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+				err := deviceConn.WriteMessage(websocket.TextMessage, []byte(`{"id":"heart","data":"1"}`))
+				deviceWriteMu.Unlock()
+				if err != nil {
+					return
+				}
+				// 心跳写入成功，重置容器端读超时
+				deviceConn.SetReadDeadline(time.Now().Add(deviceReadWait))
 			}
 		}
 	}()
@@ -495,8 +535,11 @@ func (p *ProjectionProxy) HandleProjection(w http.ResponseWriter, r *http.Reques
 					log.Printf("[投屏代理] 注册 UDP 会话: ufrag=%s → 端口 %d", ufrag, containerUDPPort)
 				}
 			}
+			frontWriteMu.Lock()
 			frontConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := frontConn.WriteMessage(msgType, data); err != nil {
+			err = frontConn.WriteMessage(msgType, data)
+			frontWriteMu.Unlock()
+			if err != nil {
 				return
 			}
 		}
@@ -511,8 +554,11 @@ func (p *ProjectionProxy) HandleProjection(w http.ResponseWriter, r *http.Reques
 			if err != nil {
 				return
 			}
+			deviceWriteMu.Lock()
 			deviceConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := deviceConn.WriteMessage(msgType, data); err != nil {
+			err = deviceConn.WriteMessage(msgType, data)
+			deviceWriteMu.Unlock()
+			if err != nil {
 				return
 			}
 		}
@@ -523,6 +569,7 @@ func (p *ProjectionProxy) HandleProjection(w http.ResponseWriter, r *http.Reques
 	case <-deviceDone:
 	case <-clientDone:
 	case <-pingDone:
+	case <-deviceHeartDone:
 	}
 
 	// 清理 UDP 会话

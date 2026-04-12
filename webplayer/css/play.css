@@ -12,7 +12,7 @@ body {
     box-sizing: border-box;
 }
 
-/* 主容器布局 - 使用绝对定位 */
+/* 主容器布局 - GPU 合成层 */
 #assistDiv {
     position: fixed;
     top: 0;
@@ -20,9 +20,11 @@ body {
     width: 100vw;
     height: 100vh;
     z-index: 50;
+    transform: translateZ(0);
+    will-change: contents;
 }
 
-/* 视频容器 - 全屏 */
+/* 视频容器 - 独立 GPU 合成层 */
 #container {
     position: absolute;
     top: 0;
@@ -32,9 +34,11 @@ body {
     background-color: #000;
     z-index: 10;
     overflow: hidden;
+    transform: translateZ(0);
+    contain: strict;
 }
 
-/* 视频样式 - 旋转90度并交换宽高以铺满容器 */
+/* 视频样式 - 全 GPU 渲染 */
 video {
     position: absolute;
     top: 50%;
@@ -45,10 +49,25 @@ video {
     display: block;
     z-index: 100;
     opacity: 1;
-    transform: translate(-50%, -50%) rotate(90deg);
+    transform: translate(-50%, -50%) rotate(90deg) translateZ(0);
+    -webkit-transform: translate(-50%, -50%) rotate(90deg) translateZ(0);
+    will-change: transform, contents;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    image-rendering: -webkit-optimize-contrast;
+    contain: layout style paint;
 }
 
-/* UI容器 */
+/* canvas 元素（SDK 可能用 canvas 渲染） - GPU 加速，不设 transform 避免覆盖 SDK 布局 */
+canvas {
+    will-change: contents;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    image-rendering: -webkit-optimize-contrast;
+    contain: layout style paint;
+}
+
+/* UI容器 - 独立层避免干扰视频渲染 */
 #uicontainer {
     position: absolute;
     top: 0;
@@ -58,4 +77,6 @@ video {
     background: transparent !important;
     z-index: 50;
     pointer-events: none;
+    transform: translateZ(0);
+    contain: strict;
 }

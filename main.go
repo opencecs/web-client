@@ -1,14 +1,19 @@
 package main
 
 import (
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -121,9 +126,9 @@ func main() {
 		})
 	})
 
-	// webplayer 静态文件（长缓存）
+	// webplayer 静态文件（ETag + 长缓存，避免重复传输）
 	wpFS, _ := fs.Sub(webplayerFS, "webplayer")
-	r.Handle("/webplayer/*", http.StripPrefix("/webplayer/", staticCacheHandler(http.FileServer(http.FS(wpFS)), 86400*7)))
+	r.Handle("/webplayer/*", http.StripPrefix("/webplayer/", etagCacheHandler(wpFS, 86400*7)))
 
 	// 前端 SPA
 	distFS, err := fs.Sub(frontendFS, "frontend/dist")
@@ -186,6 +191,42 @@ func staticCacheHandler(h http.Handler, maxAge int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", cacheVal)
 		h.ServeHTTP(w, r)
+	})
+}
+
+// etagCacheHandler 为 embed.FS 静态资源提供 ETag + If-None-Match 304 支持
+func etagCacheHandler(fsys fs.FS, maxAge int) http.Handler {
+	cacheVal := fmt.Sprintf("public, max-age=%d, immutable", maxAge)
+	var etagCache sync.Map // path → etag string
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+		// 计算或取缓存的 ETag
+		etag, ok := etagCache.Load(path)
+		if !ok {
+			f, err := fsys.Open(path)
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+			h := sha256.New()
+			io.Copy(h, f)
+			f.Close()
+			etag = `"` + hex.EncodeToString(h.Sum(nil))[:16] + `"`
+			etagCache.Store(path, etag)
+		}
+		etagStr := etag.(string)
+		w.Header().Set("ETag", etagStr)
+		w.Header().Set("Cache-Control", cacheVal)
+		// 检查 If-None-Match → 304
+		if match := r.Header.Get("If-None-Match"); match == etagStr {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		// 首次请求，正常响应
+		http.FileServer(http.FS(fsys)).ServeHTTP(w, r)
 	})
 }
 

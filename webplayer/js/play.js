@@ -147,22 +147,34 @@ function initWheelHandler() {
 
 initWheelHandler();
 
-// 禁用视频悬浮控件（画中画、翻译、音频增强）
+// 禁用视频悬浮控件 + 强制硬件解码优化
 (function() {
-    function disableVideoOverlays(video) {
+    function optimizeVideo(video) {
         video.disablePictureInPicture = true;
         video.disableRemotePlayback = true;
         video.controlsList && video.controlsList.add('noplaybackrate', 'nodownload', 'nofullscreen');
         video.removeAttribute('controls');
+        // 强制低延迟播放
+        video.playsInline = true;
+        video.autoplay = true;
+        video.muted = false;
+        // 降低缓冲延迟
+        if (typeof video.latencyHint !== 'undefined') video.latencyHint = 'interactive';
+        // GPU 加速（不覆盖 CSS transform，用其他属性提升合成层）
+        video.style.willChange = 'contents';
+        video.style.backfaceVisibility = 'hidden';
     }
     // 处理已有的 video
-    document.querySelectorAll('video').forEach(disableVideoOverlays);
+    document.querySelectorAll('video').forEach(optimizeVideo);
     // 监听动态创建的 video
     new MutationObserver(function(mutations) {
         mutations.forEach(function(m) {
             m.addedNodes.forEach(function(n) {
-                if (n.tagName === 'VIDEO') disableVideoOverlays(n);
-                if (n.querySelectorAll) n.querySelectorAll('video').forEach(disableVideoOverlays);
+                if (n.tagName === 'VIDEO') optimizeVideo(n);
+                if (n.querySelectorAll) n.querySelectorAll('video').forEach(optimizeVideo);
+                // canvas 也加 GPU 层（不覆盖 transform）
+                if (n.tagName === 'CANVAS') { n.style.willChange = 'contents'; n.style.backfaceVisibility = 'hidden'; }
+                if (n.querySelectorAll) n.querySelectorAll('canvas').forEach(function(c) { c.style.willChange = 'contents'; c.style.backfaceVisibility = 'hidden'; });
             });
         });
     }).observe(document.body, { childList: true, subtree: true });
@@ -277,3 +289,25 @@ window.globalCleanup = function() {
 };
 
 cleanupHandlers.register();
+
+// 浏览器后台切回来时，检测 WebRTC 连接是否断开，断了直接 reload 重连
+(function() {
+    var reloadTimer = null;
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState !== 'visible') return;
+        // 延迟 1.5 秒再检测，给 SDK 自带重连一个机会
+        if (reloadTimer) clearTimeout(reloadTimer);
+        reloadTimer = setTimeout(function() {
+            var pc = null;
+            if (window.h5_lgair) {
+                pc = (window.h5_lgair.g_player && window.h5_lgair.g_player.pconnection) || window.h5_lgair.pconnection;
+            }
+            if (!pc) { location.reload(); return; }
+            var state = pc.connectionState || pc.iceConnectionState;
+            if (state === 'disconnected' || state === 'failed' || state === 'closed') {
+                console.log('[投屏] 后台返回检测到连接断开 (' + state + ')，重新加载');
+                location.reload();
+            }
+        }, 1500);
+    });
+})();

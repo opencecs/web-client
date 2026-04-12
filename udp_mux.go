@@ -69,7 +69,7 @@ func (r *SessionRegistry) Register(ufrag string, containerUDPPort int, muxConn *
 		log.Printf("[UDP Mux] 创建本地 socket 失败: %v", err)
 		return
 	}
-	localConn.SetReadBuffer(512 * 1024)
+	localConn.SetReadBuffer(1024 * 1024)
 
 	session := &MuxSession{
 		ContainerUDPPort: containerUDPPort,
@@ -86,9 +86,9 @@ func (r *SessionRegistry) Register(ufrag string, containerUDPPort int, muxConn *
 	localPort := localConn.LocalAddr().(*net.UDPAddr).Port
 	log.Printf("[UDP Mux] 注册会话: ufrag=%s → 容器端口 %d (本地端口 %d)", ufrag, containerUDPPort, localPort)
 
-	// 启动容器回包读协程：容器 → LocalConn → MuxConn → 浏览器
+	// 容器 → LocalConn → MuxConn → 浏览器
 	go func() {
-		buf := make([]byte, 1500)
+		buf := make([]byte, 65535)
 		for {
 			n, _, err := localConn.ReadFromUDP(buf)
 			if err != nil {
@@ -199,7 +199,7 @@ func StartUDPMux(port int, registry *SessionRegistry) error {
 	if err != nil {
 		return err
 	}
-	conn.SetReadBuffer(2 * 1024 * 1024)
+	conn.SetReadBuffer(4 * 1024 * 1024)
 
 	// 保存全局引用，供 Register 使用
 	muxConn = conn
@@ -217,7 +217,7 @@ func StartUDPMux(port int, registry *SessionRegistry) error {
 
 	// 收包主循环（只处理浏览器 → 容器方向）
 	go func() {
-		buf := make([]byte, 1500)
+		buf := make([]byte, 65535)
 		for {
 			n, remoteAddr, err := conn.ReadFromUDP(buf)
 			if err != nil {

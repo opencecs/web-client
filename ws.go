@@ -55,6 +55,8 @@ func parseContainerList(raw []byte) []ParsedContainer {
 }
 
 var upgrader = websocket.Upgrader{
+	ReadBufferSize:  16 * 1024,
+	WriteBufferSize: 16 * 1024,
 	CheckOrigin: func(r *http.Request) bool {
 		// 允许同源和局域网访问
 		origin := r.Header.Get("Origin")
@@ -185,7 +187,7 @@ func (h *WSHub) Run() {
 			}
 			// 推送别名数据
 			if h.alias != nil {
-				aliases := h.alias.GetAllAliases()
+				aliases := h.buildAliasMap()
 				msg, _ := json.Marshal(map[string]interface{}{
 					"type": "event", "event": "aliases:list",
 					"data": aliases,
@@ -251,6 +253,14 @@ func (h *WSHub) Broadcast(event string, data interface{}) {
 		"type": "event", "event": event, "data": data,
 	})
 	h.broadcast <- msg
+}
+
+// buildAliasMap 构建 containerName → alias 映射（读取当前容器列表）
+func (h *WSHub) buildAliasMap() map[string]string {
+	h.containerMu.RLock()
+	parsed := h.parsedContainers
+	h.containerMu.RUnlock()
+	return h.alias.BuildAliasMap(parsed)
 }
 
 func (c *WSClient) SendJSON(data interface{}) {
@@ -367,6 +377,20 @@ func (h *WSHub) fetchAndBroadcastContainers() {
 	h.containerCache = body
 	h.parsedContainers = parsed
 	h.containerMu.Unlock()
+
+	// 触发旧别名迁移（只执行一次，从 container_aliases 表迁移到 slot_aliases 表）
+	if h.alias != nil {
+		h.alias.MigrateFromNameBased(parsed)
+	}
+
+	// 容器列表变化后广播最新别名映射（容器名可能因刷机而变化，需要重新映射）
+	if h.alias != nil {
+		aliasMsg, _ := json.Marshal(map[string]interface{}{
+			"type": "event", "event": "aliases:list",
+			"data": h.alias.BuildAliasMap(parsed),
+		})
+		h.broadcast <- aliasMsg
+	}
 
 	// 预构建 admin 完整消息
 	adminMsg, _ := json.Marshal(map[string]interface{}{
@@ -690,6 +714,11 @@ func (c *WSClient) handleProjectionToken(req WSRequest) {
 		respData["udpPort"] = udpPort
 	}
 	c.sendResponse(req.ID, true, "", respData)
+
+	// 提前释放该坑位的预热连接（在前端加载 play.html 期间完成，加速后续投屏连接）
+	if indexNum := c.hub.projProxy.findContainerIndex(containerName); indexNum > 0 {
+		go c.hub.projProxy.takeWarm(indexNum)
+	}
 }
 
 func getStr(m map[string]interface{}, key string) string {

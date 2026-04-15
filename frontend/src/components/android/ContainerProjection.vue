@@ -77,10 +77,10 @@ const emit = defineEmits(['update:modelValue', 'close'])
 
 const iframeRef = ref(null)
 
-// 浮窗位置和大小 - 根据 offsetIndex 错开
+// 浮窗位置和大小 - 居中显示，多窗口根据 offsetIndex 错开
 const pos = reactive({
-  x: 100 + props.offsetIndex * 30,
-  y: 60 + props.offsetIndex * 30,
+  x: Math.max(0, Math.round((window.innerWidth - 380) / 2)) + props.offsetIndex * 30,
+  y: Math.max(0, Math.round((window.innerHeight - 700) / 2)) + props.offsetIndex * 30,
   w: 380,
   h: 700
 })

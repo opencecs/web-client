@@ -242,6 +242,7 @@
     </div>
 
     <template #footer>
+      <span v-if="createTip" style="color: #e6a23c; font-size: 13px; margin-right: 12px">{{ createTip }}</span>
       <el-button @click="onClose">{{ taskDone ? '关闭' : '取消' }}</el-button>
       <el-button v-if="!taskPhase" type="primary" :loading="creating" @click="doCreate">创建</el-button>
     </template>
@@ -325,6 +326,7 @@ const hasOccupiedSlot = computed(() => {
 
 // 状态
 const creating = ref(false)
+const createTip = ref('')
 const taskPhase = ref(null)
 const taskDone = ref(false)
 const taskError = ref('')
@@ -533,9 +535,10 @@ async function loadData() {
 }
 
 async function doCreate() {
-  if (selectedSlots.value.size === 0 && !form.imageUrl) { ElMessage.warning('请选择坑位和镜像'); return }
-  if (selectedSlots.value.size === 0) { ElMessage.warning('请选择坑位'); return }
-  if (!form.imageUrl) { ElMessage.warning('请选择镜像'); return }
+  createTip.value = ''
+  if (selectedSlots.value.size === 0 && !form.imageUrl) { createTip.value = '请选择坑位和镜像'; return }
+  if (selectedSlots.value.size === 0) { createTip.value = '请选择坑位'; return }
+  if (!form.imageUrl) { createTip.value = '请选择镜像'; return }
   creating.value = true
   try {
     // 先拉取镜像（只需一次）

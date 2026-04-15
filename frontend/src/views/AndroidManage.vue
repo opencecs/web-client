@@ -95,7 +95,7 @@
     <ContainerTerminal v-model="terminalVisible" :container="terminalContainer" />
 
     <!-- S5 代理弹窗 -->
-    <el-dialog v-model="s5Visible" title="S5 代理管理" width="500px" @opened="fetchS5Status">
+    <el-dialog v-model="s5Visible" title="S5 代理管理" width="550px" @opened="fetchS5Status">
       <div v-if="s5Container" style="margin-bottom: 12px">
         <span style="color: #999">容器：</span>
         <span style="color: #e0e0e0">{{ device.displayName(s5Container.name) }}</span>

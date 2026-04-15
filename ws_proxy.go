@@ -56,11 +56,11 @@ func (c *WSClient) handleProxyAction(req WSRequest) {
 		}
 		q := url.Values{}
 		q.Set("cmd", "2")
-		q.Set("addr", addr)
+		q.Set("type", s5Type)
+		q.Set("ip", addr)
 		q.Set("port", s5Port)
 		q.Set("usr", usr)
 		q.Set("pwd", pwd)
-		q.Set("type", s5Type)
 		c.proxyRequest(req, port, "GET", "/proxy?"+q.Encode(), nil)
 
 	case "proxy:stop":

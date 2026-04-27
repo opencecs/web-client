@@ -105,6 +105,25 @@
       </div>
     </el-card>
 
+    <!-- FRP 服务端 -->
+    <el-card style="background: #1a1a1a; border-color: #2a2a2a; margin-top: 16px">
+      <template #header>
+        <div style="display: flex; align-items: center; justify-content: space-between">
+          <span style="color: #e0e0e0; font-weight: bold">FRP 服务端</span>
+          <el-button type="primary" size="small" @click="openFrpsDashboard">打开管理面板</el-button>
+        </div>
+      </template>
+      <el-descriptions :column="2" border size="small">
+        <el-descriptions-item label="面板地址">{{ frpsUrl }}</el-descriptions-item>
+        <el-descriptions-item label="端口">7500</el-descriptions-item>
+        <el-descriptions-item label="账号">admin</el-descriptions-item>
+        <el-descriptions-item label="密码">
+          <span style="color: #999">admin</span>
+          <el-button type="primary" link size="small" style="margin-left: 8px" @click="copyFrpsPassword">复制</el-button>
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-card>
+
     <!-- SSH 终端弹窗 -->
     <el-dialog v-model="sshDialogVisible" title="远程SSH" width="90%"
       :close-on-click-modal="false" @close="cleanupSSH" @opened="onSshDialogOpened" destroy-on-close
@@ -168,7 +187,7 @@
         <div style="margin-top: 12px">
           <el-button type="primary" :loading="mytSyncing" @click="mytSync">手动同步</el-button>
           <el-button v-if="bindInfo.bindStatus !== 1" type="success" :loading="binding" @click="mytBind">绑定设备</el-button>
-          <el-button v-if="bindInfo.bindStatus === 1" type="warning" @click="showUnbindDialog = true">解绑设备</el-button>
+          <el-button v-if="bindInfo.bindStatus === 1" type="warning" @click="confirmUnbind">解绑设备</el-button>
           <el-button @click="mytLogout">退出登录</el-button>
         </div>
       </div>
@@ -199,9 +218,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useDeviceStore } from '../stores/device.js'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Terminal } from 'xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import 'xterm/css/xterm.css'
@@ -225,6 +244,17 @@ const cleaning = ref(false)
 const cleanProgress = ref(0)
 const cleanStatus = ref('')
 const cleanProgressStatus = ref('')
+
+// FRP 服务端
+const frpsUrl = computed(() => `${location.protocol}//${location.hostname}:7500`)
+function openFrpsDashboard() {
+  window.open(frpsUrl.value, '_blank')
+}
+function copyFrpsPassword() {
+  navigator.clipboard.writeText('admin').then(() => {
+    ElMessage.success('已复制密码')
+  }).catch(() => {})
+}
 const mytForm = reactive({ username: '', password: '' })
 const mytStatus = ref({})
 const mytLogging = ref(false)
@@ -701,6 +731,24 @@ async function mytLogin() {
     ElMessage.error(e.message || '登录失败')
   } finally {
     mytLogging.value = false
+  }
+}
+
+async function confirmUnbind() {
+  try {
+    await ElMessageBox.confirm(
+      '解绑设备后，该设备下的所有云手机实例将被清空且不可恢复，请谨慎操作！',
+      '解绑设备',
+      {
+        confirmButtonText: '我已了解，继续解绑',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger',
+        type: 'warning'
+      }
+    )
+    showUnbindDialog.value = true
+  } catch {
+    // 用户取消
   }
 }
 

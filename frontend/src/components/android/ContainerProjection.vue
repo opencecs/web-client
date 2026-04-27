@@ -27,6 +27,9 @@
         <label class="sidebar-btn" title="上传文件（APK自动安装）">
           📁<span>上传</span><input type="file" style="display:none" @change="doUpload" ref="uploadInput" />
         </label>
+        <label class="sidebar-btn" title="上传 Google 证书（PEM）">
+          🔑<span>证书</span><input type="file" accept=".pem" style="display:none" @change="doKeyboxUpload" ref="keyboxInput" />
+        </label>
       </div>
     </div>
     <!-- 安卓导航按钮 -->
@@ -277,6 +280,7 @@ function stopLatencyPoll() {
 // ===== 工具栏功能 =====
 const uploadInput = ref(null)
 const certInput = ref(null)
+const keyboxInput = ref(null)
 const showSmsDialog = ref(false)
 const smsAddress = ref('')
 const smsBody = ref('')
@@ -306,6 +310,17 @@ async function doCertUpload(e) {
     await api.post(`/container/${props.container.name}/cert`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 })
   } catch {}
   if (certInput.value) certInput.value.value = ''
+}
+
+async function doKeyboxUpload(e) {
+  const file = e.target.files?.[0]
+  if (!file || !props.container) return
+  const form = new FormData()
+  form.append('file', file)
+  try {
+    await api.post(`/container/${props.container.name}/keybox`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 })
+  } catch {}
+  if (keyboxInput.value) keyboxInput.value.value = ''
 }
 
 function doSendSms() {

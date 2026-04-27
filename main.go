@@ -115,6 +115,7 @@ func main() {
 		uploadProxy := &ContainerUploadProxy{auth: authService, hub: wsHub}
 		r.Post("/api/container/{name}/upload", uploadProxy.HandleUpload)
 		r.Post("/api/container/{name}/cert", uploadProxy.HandleCert)
+		r.Post("/api/container/{name}/keybox", uploadProxy.HandleKeybox)
 
 		// WebSocket（所有业务走这里）
 		r.Get("/ws", wsHub.HandleWS)

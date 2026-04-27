@@ -32,17 +32,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useDeviceStore } from '../stores/device.js'
 import { Monitor, Cpu, Cellphone, User, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
 
+const emit = defineEmits(['collapse-change'])
 const route = useRoute()
 const auth = useAuthStore()
 const device = useDeviceStore()
 const collapsed = ref(true)
 const panelVersion = ref('...')
+
+watch(collapsed, (val) => {
+  emit('collapse-change', val)
+}, { immediate: true })
 
 onMounted(() => {
   const fetchVersion = async () => {
@@ -64,6 +69,11 @@ onMounted(() => {
   border-right: 1px solid #2a2a2a;
   transition: width 0.2s;
   overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 200;
 }
 .sidebar-header {
   display: flex;

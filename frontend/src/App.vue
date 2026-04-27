@@ -1,9 +1,9 @@
 <template>
   <div class="app-container dark">
-    <el-container v-if="auth.isLoggedIn" style="height: 100vh">
-      <Sidebar />
-      <el-container direction="vertical">
-        <el-header style="background: #141414; border-bottom: 1px solid #2a2a2a; display: flex; align-items: center; justify-content: space-between; height: 50px; padding: 0 20px">
+    <template v-if="auth.isLoggedIn">
+      <Sidebar @collapse-change="onSidebarCollapse" />
+      <div class="main-wrapper" :style="{ marginLeft: sidebarWidth + 'px' }">
+        <header class="app-header">
           <div class="ws-status" :class="device.online ? 'online' : 'offline'">
             <span class="ws-dot"></span>
             <span>{{ device.online ? '已连接' : '未连接' }}</span>
@@ -23,12 +23,12 @@
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-        </el-header>
-        <el-main style="padding: 0; background: #0a0a0a; overflow-y: auto">
+        </header>
+        <main class="app-main">
           <router-view />
-        </el-main>
-      </el-container>
-    </el-container>
+        </main>
+      </div>
+    </template>
     <router-view v-else />
     <!-- 手机 UA 被强制桌面模式时，显示回切按钮 -->
     <div v-if="showMobileSwitch" class="mobile-switch-hint" @click="switchToMobile">
@@ -38,7 +38,7 @@
 </template>
 
 <script setup>
-import { onMounted, computed, onBeforeUnmount } from 'vue'
+import { onMounted, computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth.js'
 import { useDeviceStore } from './stores/device.js'
@@ -49,6 +49,11 @@ import { checkIsMobile } from './utils/isMobile.js'
 const router = useRouter()
 const auth = useAuthStore()
 const device = useDeviceStore()
+const sidebarWidth = ref(64)
+
+function onSidebarCollapse(collapsed) {
+  sidebarWidth.value = collapsed ? 64 : 200
+}
 
 // 检测：手机 UA 但被 force_platform=desktop 强制到桌面版
 const isMobileUA = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile/i.test(navigator.userAgent)
@@ -120,7 +125,31 @@ html.dark {
   color-scheme: dark;
 }
 .app-container {
-  height: 100vh;
+  min-height: 100vh;
+}
+.main-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: margin-left 0.2s;
+}
+.app-header {
+  background: #141414;
+  border-bottom: 1px solid #2a2a2a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 50px;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  flex-shrink: 0;
+}
+.app-main {
+  flex: 1;
+  padding: 0;
+  background: #0a0a0a;
 }
 .ws-status {
   display: flex;

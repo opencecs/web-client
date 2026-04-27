@@ -23,6 +23,11 @@ async function bootstrap() {
       import('./router/index.js'),
     ])
     await import('element-plus/theme-chalk/dark/css-vars.css')
+    // 命令式组件样式（ElMessage/ElMessageBox/ElDialog/ElNotification 不在模板中使用，按需导入无法自动检测）
+    await import('element-plus/theme-chalk/el-message.css')
+    await import('element-plus/theme-chalk/el-message-box.css')
+    await import('element-plus/theme-chalk/el-dialog.css')
+    await import('element-plus/theme-chalk/el-overlay.css')
 
     const app = createApp(App)
     app.use(createPinia())

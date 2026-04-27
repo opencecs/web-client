@@ -63,6 +63,21 @@ func (p *ContainerUploadProxy) HandleCert(w http.ResponseWriter, r *http.Request
 	p.forwardMultipart(w, r, fmt.Sprintf("http://127.0.0.1:%d/uploadcert", port), containerName)
 }
 
+// HandleKeybox 处理 Google 证书上传转发到容器 POST /uploadkeybox
+func (p *ContainerUploadProxy) HandleKeybox(w http.ResponseWriter, r *http.Request) {
+	containerName := chi.URLParam(r, "name")
+	if msg := p.checkAccess(r, containerName); msg != "" {
+		jsonError(w, msg, 403)
+		return
+	}
+	port := containerAPIPort(p.hub, containerName)
+	if port == 0 {
+		jsonError(w, "找不到容器", 404)
+		return
+	}
+	p.forwardMultipart(w, r, fmt.Sprintf("http://127.0.0.1:%d/uploadkeybox", port), containerName)
+}
+
 // checkAccess 检查用户对容器的坑位权限
 func (p *ContainerUploadProxy) checkAccess(r *http.Request, containerName string) string {
 	claims := r.Context().Value(userContextKey).(*Claims)

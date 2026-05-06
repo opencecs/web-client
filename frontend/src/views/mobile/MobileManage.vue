@@ -15,6 +15,8 @@
       <van-cell-group inset style="margin-top: 12px" v-if="auth.can('backup_manage') || auth.isAdmin">
         <van-cell title="备份管理" icon="description" is-link to="/m/backup"
           label="容器备份查看与删除" v-if="auth.can('backup_manage')" />
+        <van-cell title="文件管理" icon="records" is-link to="/m/files"
+          label="上传文件到设备" v-if="auth.can('backup_manage')" />
         <van-cell title="设备管理" icon="desktop-o" is-link to="/m/device"
           label="SDK 升级、面板更新、网络设置" v-if="auth.isAdmin" />
         <van-cell title="用户管理" icon="friends-o" is-link to="/m/users"

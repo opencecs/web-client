@@ -180,10 +180,19 @@ initWheelHandler();
     }).observe(document.body, { childList: true, subtree: true });
 })();
 
-// 接收外壳 postMessage 指令（安卓按键 + 延迟查询）
+// 接收外壳 postMessage 指令（安卓按键 + 延迟查询 + 横竖屏）
 window.addEventListener('message', function(e) {
     if (!e.data || !e.data.action) return;
     var action = e.data.action;
+    if (action === 'setOrientation') {
+        var orient = e.data.orientation;
+        if (orient === 'landscape') {
+            document.body.classList.add('landscape-orientation');
+        } else {
+            document.body.classList.remove('landscape-orientation');
+        }
+        return;
+    }
     if (action === 'getLatency') {
         // 从 WebRTC peerConnection 获取延迟
         try {

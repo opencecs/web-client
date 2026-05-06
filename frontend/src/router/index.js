@@ -10,6 +10,7 @@ const routes = [
   { path: '/device', name: 'DeviceManage', component: () => import('../views/DeviceManage.vue'), meta: { admin: true } },
   { path: '/android', name: 'AndroidManage', component: () => import('../views/AndroidManage.vue') },
   { path: '/backup', name: 'BackupManage', component: () => import('../views/BackupManage.vue'), meta: { perm: 'backup_manage' } },
+  { path: '/files', name: 'FileManage', component: () => import('../views/FileManage.vue'), meta: { perm: 'backup_manage' } },
 
   { path: '/users', name: 'UserManagement', component: () => import('../views/UserManagement.vue'), meta: { admin: true } },
 
@@ -33,6 +34,7 @@ router.beforeEach(async (to, from, next) => {
       '/android': '/m/android',
       '/device': '/m/device',
       '/backup': '/m/backup',
+      '/files': '/m/files',
       '/users': '/m/users',
     }
     const target = mobileMap[to.path]
@@ -46,6 +48,7 @@ router.beforeEach(async (to, from, next) => {
       '/m/android': '/android',
       '/m/device': '/device',
       '/m/backup': '/backup',
+      '/m/files': '/files',
       '/m/users': '/users',
     }
     const target = desktopMap[to.path]

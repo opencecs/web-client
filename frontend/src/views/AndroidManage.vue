@@ -13,6 +13,8 @@
           @rename="openAlias"
           @copy="openCopy"
           @s5proxy="openS5Proxy"
+          @switch-model="openSwitchModel"
+          @batch-upload="openBatchUpload"
         />
         <!-- 方块网格 -->
         <SlotGrid ref="slotGridRef" :max-slots="maxSlots" @selection-change="onSelectionChange" />
@@ -158,6 +160,80 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 切换机型弹窗 -->
+    <el-dialog v-model="switchModelVisible" title="切换机型" width="480px" destroy-on-close>
+      <el-form label-width="80px">
+        <el-form-item label="容器">
+          <span style="color: #999">{{ switchModelTarget?.name }}</span>
+        </el-form-item>
+        <el-form-item label="安卓版本">
+          <span style="color: #999">{{ switchModelVersion === 'and14' ? 'Android 14' : 'Android 16' }}</span>
+        </el-form-item>
+        <el-form-item label="手机型号">
+          <el-select v-model="switchModelId" filterable clearable placeholder="留空随机分配"
+            style="width: 100%" :loading="switchModelLoading">
+            <el-option v-for="m in switchModelFiltered" :key="m.id || m.modelId"
+              :label="m.name || m.modelName" :value="m.id || m.modelId" />
+          </el-select>
+          <div style="color: #999; font-size: 11px; margin-top: 2px">
+            {{ switchModelFiltered.length }} 个机型可选，留空随机分配
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="switchModelVisible = false">取消</el-button>
+        <el-button type="primary" :loading="switchModelSaving" @click="doSwitchModel">确认</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 批量上传弹窗 -->
+    <el-dialog v-model="batchUploadVisible" title="批量上传文件" width="600px" destroy-on-close>
+      <div style="margin-bottom: 12px">
+        <span style="color: #999">将文件推送到以下容器的 /sdcard/upload/ 目录：</span>
+        <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px">
+          <el-tag v-for="c in batchUploadContainers" :key="c.name" size="small"
+            :type="batchUploadResult[c.name]?.success ? 'success' : batchUploadResult[c.name]?.fail ? 'danger' : 'info'">
+            {{ device.displayName(c.name) }}
+            <span v-if="batchUploadResult[c.name]?.success"> ✓</span>
+            <span v-if="batchUploadResult[c.name]?.fail"> ✗</span>
+            <span v-if="batchUploadResult[c.name]?.uploading" style="color: #409eff"> ↑</span>
+          </el-tag>
+        </div>
+      </div>
+
+      <!-- 从文件管理选取文件 -->
+      <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between">
+        <span style="color: #e0e0e0; font-weight: 600">选择文件</span>
+        <span style="color: #e6a23c; font-size: 12px; margin-left: 8px; font-weight: bold">APK 文件会自动安装</span>
+        <el-button size="small" :loading="batchFileLoading" @click="loadBatchFiles">刷新</el-button>
+      </div>
+      <el-table ref="batchFileTableRef" :data="batchFileList" style="width: 100%" max-height="300"
+        @selection-change="onBatchFileSelect" v-loading="batchFileLoading" stripe size="small">
+        <el-table-column type="selection" width="45" />
+        <el-table-column label="文件名" prop="name" min-width="200" show-overflow-tooltip />
+        <el-table-column label="大小" width="100" align="right">
+          <template #default="{ row }">{{ formatBatchSize(row.size) }}</template>
+        </el-table-column>
+      </el-table>
+      <div v-if="!batchFileLoading && batchFileList.length === 0" style="color: #666; font-size: 13px; text-align: center; padding: 20px 0">
+        暂无文件，请先到文件管理页面上传
+      </div>
+
+      <div v-if="batchUploadProgress.total > 0" style="margin-top: 12px">
+        <el-progress :percentage="Math.round(batchUploadProgress.done / batchUploadProgress.total * 100)"
+          :status="batchUploadProgress.fail > 0 ? 'exception' : undefined" />
+        <div style="color: #999; font-size: 12px; margin-top: 4px">
+          {{ batchUploadProgress.done }} / {{ batchUploadProgress.total }}
+          <span v-if="batchUploadProgress.fail > 0" style="color: #f56c6c">（{{ batchUploadProgress.fail }} 失败）</span>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="batchUploadVisible = false">{{ batchUploadRunning ? '关闭' : '取消' }}</el-button>
+        <el-button type="primary" :loading="batchUploadRunning" :disabled="!batchSelectedFiles.length"
+          @click="doBatchUpload">开始上传（{{ batchSelectedFiles.length }} 个文件 × {{ batchUploadContainers.length }} 个容器）</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -177,6 +253,7 @@ import VpcManageTab from '../components/android/VpcManageTab.vue'
 import ContainerProjection from '../components/android/ContainerProjection.vue'
 import ContainerTerminal from '../components/android/ContainerTerminal.vue'
 import { reactive } from 'vue'
+import api from '../api/index.js'
 
 const auth = useAuthStore()
 const device = useDeviceStore()
@@ -392,5 +469,170 @@ async function doStopS5() {
     await fetchS5Status()
   } catch (e) { ElMessage.error(e.message || '停止失败') }
   finally { s5Stopping.value = false }
+}
+
+// 切换机型
+const switchModelVisible = ref(false)
+const switchModelTarget = ref(null)
+const switchModelVersion = ref('and16')
+const switchModelId = ref('')
+const switchModelList = ref([])
+const switchModelLoading = ref(false)
+const switchModelSaving = ref(false)
+
+const switchModelFiltered = computed(() => {
+  const ver = switchModelVersion.value === 'and14' ? '14' : '16'
+  return switchModelList.value.filter(m => m.android_version === ver)
+})
+
+async function openSwitchModel(container) {
+  if (!container) { ElMessage.warning('请选择一个容器'); return }
+  switchModelTarget.value = container
+  switchModelId.value = ''
+  switchModelVisible.value = true
+  switchModelLoading.value = true
+  try {
+    // 并行加载镜像列表和机型列表
+    const [mirrorResp, phoneResp] = await Promise.allSettled([
+      device.request('device:mirrors'),
+      device.request('sdk:getPhoneModels')
+    ])
+    // 根据容器镜像匹配安卓版本
+    let mirrors = []
+    if (mirrorResp.status === 'fulfilled') mirrors = mirrorResp.value.data || []
+    const image = container.image || ''
+    const matchedMirror = mirrors.find(m => m.url === image)
+    switchModelVersion.value = matchedMirror?.os_ver === 'and14' ? 'and14' : 'and16'
+    // 机型
+    if (phoneResp.status === 'fulfilled') {
+      const d = phoneResp.value.data
+      const pl = d?.data?.list || d?.list || d?.data || d || []
+      switchModelList.value = Array.isArray(pl) ? pl : []
+    } else {
+      switchModelList.value = []
+    }
+  } catch {
+    switchModelList.value = []
+  } finally {
+    switchModelLoading.value = false
+  }
+}
+
+async function doSwitchModel() {
+  switchModelSaving.value = true
+  try {
+    let modelId = switchModelId.value
+    if (!modelId && switchModelFiltered.value.length) {
+      const rand = switchModelFiltered.value[Math.floor(Math.random() * switchModelFiltered.value.length)]
+      modelId = rand.id || rand.modelId || ''
+    }
+    await device.request('sdk:switchModel', {
+      name: switchModelTarget.value.name,
+      modelId
+    }, 120000)
+    ElMessage.success('切换机型成功')
+    switchModelVisible.value = false
+  } catch (e) {
+    ElMessage.error(e.message || '切换机型失败')
+  } finally {
+    switchModelSaving.value = false
+  }
+}
+
+// 批量上传
+const batchUploadVisible = ref(false)
+const batchUploadRunning = ref(false)
+const batchUploadContainers = ref([])
+const batchUploadResult = reactive({})
+const batchUploadProgress = reactive({ total: 0, done: 0, fail: 0 })
+const batchFileList = ref([])
+const batchFileLoading = ref(false)
+const batchSelectedFiles = ref([])
+const batchFileTableRef = ref(null)
+
+function formatBatchSize(b) {
+  if (b < 1024) return b + ' B'
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB'
+  if (b < 1024 * 1024 * 1024) return (b / (1024 * 1024)).toFixed(1) + ' MB'
+  return (b / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+}
+
+async function loadBatchFiles() {
+  batchFileLoading.value = true
+  try {
+    const { data } = await api.get('/file/list')
+    batchFileList.value = data.data || []
+  } catch {
+    batchFileList.value = []
+  } finally {
+    batchFileLoading.value = false
+  }
+}
+
+function onBatchFileSelect(rows) {
+  batchSelectedFiles.value = rows
+}
+
+function openBatchUpload() {
+  const slots = selectedSlots.value
+  const containers = []
+  for (const slot of slots) {
+    const ct = device.containers.find(c => c.indexNum === slot.num)
+    if (ct) containers.push(ct)
+  }
+  if (!containers.length) {
+    ElMessage.warning('请选择至少一个容器')
+    return
+  }
+  batchUploadContainers.value = containers
+  batchUploadRunning.value = false
+  batchSelectedFiles.value = []
+  Object.keys(batchUploadResult).forEach(k => delete batchUploadResult[k])
+  Object.assign(batchUploadProgress, { total: 0, done: 0, fail: 0 })
+  batchUploadVisible.value = true
+  loadBatchFiles()
+}
+
+async function doBatchUpload() {
+  if (!batchSelectedFiles.value.length) { ElMessage.warning('请选择文件'); return }
+  batchUploadRunning.value = true
+  const files = batchSelectedFiles.value
+  const containers = batchUploadContainers.value
+  const total = files.length * containers.length
+  let done = 0, fail = 0
+  Object.assign(batchUploadProgress, { total, done: 0, fail: 0 })
+  Object.keys(batchUploadResult).forEach(k => delete batchUploadResult[k])
+
+  for (const ct of containers) {
+    batchUploadResult[ct.name] = { uploading: true }
+    let containerOk = 0, containerFail = 0
+    for (const file of files) {
+      try {
+        // 从服务器下载文件，再推送到容器
+        const resp = await api.get('/file/download', { params: { name: file.name }, responseType: 'blob' })
+        const form = new FormData()
+        form.append('file', resp.data, file.name)
+        await api.post(`/container/${ct.name}/upload`, form, { timeout: 600000 })
+        containerOk++
+      } catch {
+        containerFail++
+      }
+      done = containerOk + containerFail + (Object.values(batchUploadResult).filter(r => r.success || r.fail).length * files.length)
+      batchUploadProgress.done = done
+      batchUploadProgress.fail = fail + containerFail
+    }
+    if (containerFail === 0) {
+      batchUploadResult[ct.name] = { success: true }
+    } else {
+      batchUploadResult[ct.name] = { fail: true }
+    }
+    fail += containerFail
+  }
+  batchUploadRunning.value = false
+  if (fail === 0) {
+    ElMessage.success(`全部上传成功（${containers.length} 个容器 × ${files.length} 个文件）`)
+  } else {
+    ElMessage.warning(`上传完成：${total - fail} 成功，${fail} 失败`)
+  }
 }
 </script>

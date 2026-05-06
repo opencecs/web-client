@@ -50,6 +50,8 @@
         <van-grid-item icon="revoke" text="重置" @click="confirmAction('reset', '确认重置此容器？')" v-if="auth.can('container_reset')" />
         <van-grid-item icon="delete-o" text="删除" @click="confirmAction('delete', '确认删除此容器？')" v-if="auth.can('container_delete')" />
         <van-grid-item icon="edit" text="重命名" @click="showRename = true" v-if="auth.can('container_rename')" />
+        <van-grid-item icon="phone-o" text="切换机型" @click="showSwitchModel = true" v-if="auth.can('backup_manage')" />
+        <van-grid-item icon="upgrade" text="上传文件" @click="triggerUpload" v-if="auth.can('backup_manage')" />
         <van-grid-item icon="description" text="终端" @click="showTerminalHint" v-if="auth.can('terminal')" />
       </van-grid>
     </div>
@@ -90,6 +92,28 @@
         </van-field>
       </div>
     </van-dialog>
+
+    <!-- 切换机型弹窗 -->
+    <van-dialog v-model:show="showSwitchModel" title="切换机型" show-cancel-button
+      @confirm="doSwitchModel" :before-close="beforeSwitchModelClose">
+      <div style="padding: 16px">
+        <van-cell title="安卓版本" :value="switchModelVersion === 'and14' ? 'Android 14' : 'Android 16'" />
+        <van-field label="机型" :model-value="switchModelSelectedName" is-link readonly placeholder="留空随机分配"
+          @click="showModelPicker = true" />
+        <div style="color: #999; font-size: 11px; padding: 4px 16px">
+          {{ switchModelFiltered.length }} 个机型可选，留空随机分配
+        </div>
+      </div>
+    </van-dialog>
+
+    <!-- 机型选择器 -->
+    <van-popup v-model:show="showModelPicker" position="bottom" round>
+      <van-picker :columns="switchModelPickerCols" @confirm="onModelPick" @cancel="showModelPicker = false"
+        title="选择机型" />
+    </van-popup>
+
+    <!-- 隐藏的文件上传 input -->
+    <input ref="uploadInput" type="file" style="display: none" @change="onUploadFile" />
   </div>
 </template>
 
@@ -99,6 +123,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth.js'
 import { useDeviceStore } from '../../stores/device.js'
 import { showToast, showConfirmDialog } from 'vant'
+import api from '../../api/index.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -294,6 +319,112 @@ async function stopProxy() {
     proxyStatus.value = '未连接'
   } catch (e) {
     showToast(e.message || '停止失败')
+  }
+}
+
+// 切换机型
+const showSwitchModel = ref(false)
+const switchModelVersion = ref('and16')
+const switchModelId = ref('')
+const switchModelList = ref([])
+const showModelPicker = ref(false)
+
+const switchModelFiltered = computed(() => {
+  const ver = switchModelVersion.value === 'and14' ? '14' : '16'
+  return switchModelList.value.filter(m => m.android_version === ver)
+})
+
+const switchModelSelectedName = computed(() => {
+  if (!switchModelId.value) return ''
+  const m = switchModelList.value.find(m => (m.id || m.modelId) === switchModelId.value)
+  return m ? (m.name || m.modelName) : ''
+})
+
+const switchModelPickerCols = computed(() => {
+  const options = [{ text: '随机分配', value: '' }]
+  for (const m of switchModelFiltered.value) {
+    options.push({ text: m.name || m.modelName, value: m.id || m.modelId })
+  }
+  return [options]
+})
+
+function onModelPick({ selectedValues }) {
+  switchModelId.value = selectedValues[0] || ''
+  showModelPicker.value = false
+}
+
+function beforeSwitchModelClose(action) {
+  if (action === 'confirm') doSwitchModel()
+  else showSwitchModel.value = false
+  return false
+}
+
+async function doSwitchModel() {
+  let modelId = switchModelId.value
+  if (!modelId && switchModelFiltered.value.length) {
+    const rand = switchModelFiltered.value[Math.floor(Math.random() * switchModelFiltered.value.length)]
+    modelId = rand.id || rand.modelId || ''
+  }
+  try {
+    await device.request('sdk:switchModel', { name: containerName.value, modelId }, 120000)
+    showToast('切换机型成功')
+    showSwitchModel.value = false
+  } catch (e) {
+    showToast(e.message || '切换机型失败')
+  }
+}
+
+// 打开切换机型时加载数据
+watch(showSwitchModel, async (val) => {
+  if (!val) return
+  switchModelId.value = ''
+  try {
+    const [mirrorResp, phoneResp] = await Promise.allSettled([
+      device.request('device:mirrors'),
+      device.request('sdk:getPhoneModels')
+    ])
+    // 根据容器镜像匹配安卓版本
+    let mirrors = []
+    if (mirrorResp.status === 'fulfilled') mirrors = mirrorResp.value.data || []
+    const image = container.value?.image || ''
+    const matchedMirror = mirrors.find(m => m.url === image)
+    switchModelVersion.value = matchedMirror?.os_ver === 'and14' ? 'and14' : 'and16'
+    // 机型
+    if (phoneResp.status === 'fulfilled') {
+      const d = phoneResp.value.data
+      const pl = d?.data?.list || d?.list || d?.data || d || []
+      switchModelList.value = Array.isArray(pl) ? pl : []
+    } else {
+      switchModelList.value = []
+    }
+  } catch {
+    switchModelList.value = []
+  }
+})
+
+// 上传文件到容器
+const uploadInput = ref(null)
+const uploading = ref(false)
+
+function triggerUpload() {
+  uploadInput.value?.click()
+}
+
+async function onUploadFile(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  uploading.value = true
+  showToast({ message: '正在上传...', type: 'loading', duration: 0 })
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    await api.post(`/container/${containerName.value}/upload`, form, { timeout: 600000 })
+    showToast('上传成功')
+  } catch (err) {
+    showToast(err.response?.data?.error || err.message || '上传失败')
+  } finally {
+    uploading.value = false
+    e.target.value = ''
   }
 }
 

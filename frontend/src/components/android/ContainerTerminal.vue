@@ -41,7 +41,8 @@ function initTerminal() {
   term = new Terminal({
     cursorBlink: true,
     fontSize: 14,
-    theme: { background: '#0c0c0c' }
+    theme: { background: '#0c0c0c' },
+    allowProposedApi: true
   })
   fitAddon = new FitAddon()
   term.loadAddon(fitAddon)
@@ -49,6 +50,72 @@ function initTerminal() {
   fitAddon.fit()
   term.focus()
   term.write('\r\n\x1b[32m正在连接容器终端...\x1b[0m\r\n')
+
+  // 剪贴板辅助函数（兼容 HTTP 环境）
+  function clipboardCopy(text) {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => fallbackCopy(text))
+    } else {
+      fallbackCopy(text)
+    }
+  }
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.left = '-9999px'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+  }
+
+  // 原生 paste 事件（最可靠）
+  termRef.value.addEventListener('paste', (e) => {
+    const text = e.clipboardData?.getData('text')
+    if (text && socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'stdin', data: text }))
+    }
+  })
+
+  // 右键粘贴
+  termRef.value.addEventListener('contextmenu', (e) => {
+    e.preventDefault()
+    const text = e.clipboardData?.getData('text') || ''
+    if (!text) {
+      // 尝试从隐藏 textarea 获取
+      const ta = document.createElement('textarea')
+      ta.style.position = 'fixed'
+      ta.style.left = '-9999px'
+      document.body.appendChild(ta)
+      ta.focus()
+      document.execCommand('paste')
+      const pasted = ta.value
+      document.body.removeChild(ta)
+      if (pasted && socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'stdin', data: pasted }))
+      }
+    }
+  })
+
+  // Ctrl+C 复制（有选中内容时）/ Ctrl+V 粘贴
+  term.attachCustomKeyEventHandler((e) => {
+    if (e.type !== 'keydown') return false
+    // Ctrl+C：有选中内容时复制，否则让中断信号正常通过
+    if (e.ctrlKey && !e.shiftKey && e.code === 'KeyC') {
+      const selection = term.getSelection()
+      if (selection) {
+        clipboardCopy(selection)
+        return true // 阻止中断信号
+      }
+      return false // 无选中内容，放行 Ctrl+C 中断
+    }
+    // Ctrl+V：粘贴由原生 paste 事件处理，这里只阻止 xterm 默认行为
+    if (e.ctrlKey && !e.shiftKey && e.code === 'KeyV') {
+      return true
+    }
+    return false
+  })
 
   // WebSocket 连接到后端 SDK 代理
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'

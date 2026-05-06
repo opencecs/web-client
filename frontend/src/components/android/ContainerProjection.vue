@@ -24,6 +24,10 @@
         <button class="sidebar-btn" title="摇一摇" @click="doShake">📳<span>摇一摇</span></button>
         <button class="sidebar-btn" title="模拟短信" @click="showSmsDialog = true">💬<span>短信</span></button>
         <div class="sidebar-divider"></div>
+        <button class="sidebar-btn" :title="isLandscape ? '切换竖屏' : '切换横屏'" @click="toggleOrientation">
+          {{ isLandscape ? '📱' : '📱' }}<span>{{ isLandscape ? '竖屏' : '横屏' }}</span>
+        </button>
+        <div class="sidebar-divider"></div>
         <label class="sidebar-btn" title="上传文件（APK自动安装）">
           📁<span>上传</span><input type="file" style="display:none" @change="doUpload" ref="uploadInput" />
         </label>
@@ -284,6 +288,35 @@ const keyboxInput = ref(null)
 const showSmsDialog = ref(false)
 const smsAddress = ref('')
 const smsBody = ref('')
+const isLandscape = ref(false)
+const orientationSwitching = ref(false)
+
+function sendOrientation(orient) {
+  if (iframeRef.value?.contentWindow) {
+    iframeRef.value.contentWindow.postMessage({ action: 'setOrientation', orientation: orient }, '*')
+  }
+}
+
+async function toggleOrientation() {
+  if (!props.container || orientationSwitching.value) return
+  orientationSwitching.value = true
+  try {
+    if (isLandscape.value) {
+      await device.request('android:orientation', { name: props.container.name, rotation: '0' })
+      sendOrientation('portrait')
+      pos.w = 380; pos.h = 700
+    } else {
+      await device.request('android:orientation', { name: props.container.name, rotation: '1' })
+      sendOrientation('landscape')
+      pos.w = 700; pos.h = 380
+    }
+    isLandscape.value = !isLandscape.value
+  } catch (e) {
+    console.error('横竖屏切换失败:', e)
+  } finally {
+    orientationSwitching.value = false
+  }
+}
 
 function doShake() {
   if (!props.container) return

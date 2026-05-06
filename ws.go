@@ -607,7 +607,7 @@ func (c *WSClient) handleRequest(req WSRequest) {
 		"sdk:getGlobalDomainFilter", "sdk:setGlobalDomainFilter", "sdk:deleteGlobalDomainFilter",
 		"sdk:listBackups", "sdk:deleteBackup",
 		"sdk:listModelBackups", "sdk:deleteModelBackup",
-		"sdk:batchChangeImage":
+		"sdk:batchChangeImage", "sdk:switchModel":
 		c.handleSDKAction(req)
 	// 设备管理
 	case "device:info", "device:version", "device:mirrors", "device:reboot",
@@ -628,7 +628,7 @@ func (c *WSClient) handleRequest(req WSRequest) {
 	// S5 代理管理 + 剪贴板 + 安卓控制
 	case "proxy:status", "proxy:set", "proxy:stop",
 		"clipboard:get", "clipboard:set",
-		"android:shake", "android:sms", "android:ping":
+		"android:shake", "android:sms", "android:ping", "android:orientation":
 		c.handleProxyAction(req)
 	// 系统设置
 	case "settings:get", "settings:set":

@@ -157,6 +157,8 @@ func (c *WSClient) handleSDKAction(req WSRequest) {
 		c.sdkQuery(req, "DELETE", "/android/backup/model", q)
 	case "sdk:batchChangeImage":
 		c.sdkAction(req, "POST", "/android/change-image", req.Data, nil, 120*time.Second)
+	case "sdk:switchModel":
+		c.sdkAction(req, "POST", "/android/switchModel", req.Data, nil, 120*time.Second)
 	}
 }
 

@@ -67,6 +67,20 @@ canvas {
     contain: layout style paint;
 }
 
+/* 横屏模式：视频已是横屏流，不需要 CSS 旋转 */
+body.landscape-orientation video {
+    width: 100vw;
+    height: 100vh;
+    object-fit: contain;
+    transform: translate(-50%, -50%) translateZ(0);
+    -webkit-transform: translate(-50%, -50%) translateZ(0);
+}
+
+/* 横屏模式 canvas */
+body.landscape-orientation canvas {
+    image-rendering: -webkit-optimize-contrast;
+}
+
 /* UI容器 - 独立层避免干扰视频渲染 */
 #uicontainer {
     position: absolute;

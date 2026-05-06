@@ -41,7 +41,7 @@ func (c *WSClient) hasPermission(action string) bool {
 	// 备份
 	case "sdk:listBackups", "sdk:deleteBackup",
 		"sdk:listModelBackups", "sdk:deleteModelBackup",
-		"sdk:batchChangeImage":
+		"sdk:batchChangeImage", "sdk:switchModel":
 		return p.BackupManage
 
 	// 镜像

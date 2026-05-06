@@ -102,6 +102,34 @@ func (c *WSClient) handleProxyAction(req WSRequest) {
 		// POST /sms?cmd=4 + JSON body {"address":"xxx","body":"xxx"}
 		smsBody := map[string]string{"address": address, "body": body}
 		c.proxyRequest(req, port, "POST", "/sms?cmd=4", smsBody)
+
+	case "android:orientation":
+		rotation := getStr(req.Data, "rotation")
+		if rotation == "" {
+			rotation = "0"
+		}
+		// 通过 exec 执行 settings 命令旋转设备
+		execBody, _ := json.Marshal(map[string]interface{}{
+			"name":    name,
+			"command": []string{"sd", "-c", fmt.Sprintf("settings put system accelerometer_rotation 0; settings put system user_rotation %s", rotation)},
+		})
+		execURL := fmt.Sprintf("http://%s/android/exec", c.hub.deviceAddr)
+		client := &http.Client{Timeout: 10 * time.Second}
+		httpReq, err := http.NewRequest("POST", execURL, strings.NewReader(string(execBody)))
+		if err != nil {
+			c.sendResponse(req.ID, false, err.Error(), nil)
+			return
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
+		resp, err := client.Do(httpReq)
+		if err != nil {
+			c.sendResponse(req.ID, false, "旋转设备失败: "+err.Error(), nil)
+			return
+		}
+		defer resp.Body.Close()
+		io.ReadAll(resp.Body)
+		log.Printf("[Orientation] 容器 %s 旋转 → %s (HTTP %d)", name, rotation, resp.StatusCode)
+		c.sendResponse(req.ID, true, "ok", nil)
 	}
 }
 

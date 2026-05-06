@@ -1122,7 +1122,6 @@ LGAIR.prototype.changeScreen = function(a) {
 };
 LGAIR.prototype.trans_xy = function(a, b) {
     var videoEl = document.getElementById(this.Canvas_id);
-    // 使用 #container 的 rect 作为可视区域（video 被 rotate(90deg) 后 rect 不可靠）
     var container = document.getElementById("container");
     var cRect = container.getBoundingClientRect();
 
@@ -1131,14 +1130,22 @@ LGAIR.prototype.trans_xy = function(a, b) {
     this.Canvas_top = Math.round(cRect.top);
     this.Canvas_left = Math.round(cRect.left);
 
-    // 视频流原始分辨率（设备竖屏：宽<高）
     var srcW = (videoEl.videoWidth && videoEl.videoWidth > 0) ? videoEl.videoWidth : cH;
     var srcH = (videoEl.videoHeight && videoEl.videoHeight > 0) ? videoEl.videoHeight : cW;
 
-    // 视频旋转90度后，在容器中实际显示：视频的高变成水平方向，宽变成垂直方向
-    // 旋转后等效尺寸：显示宽=srcH, 显示高=srcW
-    var dispW = srcH;
-    var dispH = srcW;
+    var isLandscape = document.body.classList.contains('landscape-orientation');
+
+    var dispW, dispH;
+    if (isLandscape) {
+        // 横屏：视频流已是横屏，直接映射
+        dispW = srcW;
+        dispH = srcH;
+    } else {
+        // 竖屏：视频旋转90度后，高变水平方向，宽变垂直方向
+        dispW = srcH;
+        dispH = srcW;
+    }
+
     var dispRatio = dispW / dispH;
     var cRatio = cW / cH;
     var drawW, drawH, drawLeft, drawTop;
@@ -1154,19 +1161,24 @@ LGAIR.prototype.trans_xy = function(a, b) {
         drawTop = 0;
     }
 
-    // 鼠标相对于旋转后视频绘制区域的偏移
     var relX = (a - cRect.left) - drawLeft;
     var relY = (b - cRect.top) - drawTop;
     relX = Math.max(0, Math.min(relX, drawW - 1));
     relY = Math.max(0, Math.min(relY, drawH - 1));
 
-    // 归一化到 [0,1]
     var normX = relX / drawW;
     var normY = relY / drawH;
 
-    // 旋转90度反算设备坐标：屏幕(normX, normY) -> 设备(normY, 1-normX)
-    var devX = Math.round(normY * (srcW - 1));
-    var devY = Math.round((1 - normX) * (srcH - 1));
+    var devX, devY;
+    if (isLandscape) {
+        // 横屏：直接映射
+        devX = Math.round(normX * (srcW - 1));
+        devY = Math.round(normY * (srcH - 1));
+    } else {
+        // 竖屏：旋转90度反算设备坐标
+        devX = Math.round(normY * (srcW - 1));
+        devY = Math.round((1 - normX) * (srcH - 1));
+    }
 
     this.Canvas_width = srcW;
     this.Canvas_height = srcH;

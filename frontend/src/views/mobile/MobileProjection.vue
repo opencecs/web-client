@@ -66,6 +66,7 @@ const showSms = ref(false)
 const smsAddress = ref('')
 const smsBody = ref('')
 const isMuted = ref(false)
+const isLandscape = ref(false)
 let wakeLock = null
 let loading = false
 
@@ -82,6 +83,7 @@ const latencyColor = computed(() => {
 })
 
 const toolActions = computed(() => [
+  { name: isLandscape.value ? '切换竖屏' : '切换横屏', value: 'toggleOrientation' },
   { name: isMuted.value ? '取消静音' : '静音', value: 'toggleMute' },
   { name: '音量+', value: 'volUp' },
   { name: '音量-', value: 'volDown' },
@@ -95,7 +97,31 @@ function sendCmd(action) {
   }
 }
 
+function sendOrientation(orient) {
+  if (iframeRef.value?.contentWindow) {
+    iframeRef.value.contentWindow.postMessage({ action: 'setOrientation', orientation: orient }, '*')
+  }
+}
+
+async function toggleOrientation() {
+  try {
+    if (isLandscape.value) {
+      await device.request('android:orientation', { name: containerName.value, rotation: '0' })
+      sendOrientation('portrait')
+      try { await screen.orientation.unlock() } catch {}
+    } else {
+      await device.request('android:orientation', { name: containerName.value, rotation: '1' })
+      sendOrientation('landscape')
+      try { await screen.orientation.lock('landscape') } catch {}
+    }
+    isLandscape.value = !isLandscape.value
+  } catch (e) {
+    showToast('切换失败')
+  }
+}
+
 function onToolAction(action) {
+  if (action.value === 'toggleOrientation') { toggleOrientation(); return }
   if (action.value === 'sms') { showSms.value = true; return }
   if (action.value === 'shake') {
     device.request('android:shake', { name: containerName.value }).catch(() => {})

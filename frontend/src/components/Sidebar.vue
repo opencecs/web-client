@@ -27,6 +27,10 @@
         <el-icon><FolderOpened /></el-icon>
         <template #title>备份管理</template>
       </el-menu-item>
+      <el-menu-item v-if="auth.can('backup_manage')" index="/files">
+        <el-icon><Document /></el-icon>
+        <template #title>文件管理</template>
+      </el-menu-item>
       <el-menu-item v-if="auth.isAdmin" index="/users">
         <el-icon><User /></el-icon>
         <template #title>用户管理</template>
@@ -40,7 +44,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useDeviceStore } from '../stores/device.js'
-import { Monitor, Cpu, Cellphone, FolderOpened, User, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
+import { Monitor, Cpu, Cellphone, FolderOpened, Document, User, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
 
 const emit = defineEmits(['collapse-change'])
 const route = useRoute()

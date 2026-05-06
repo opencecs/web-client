@@ -117,6 +117,12 @@ func main() {
 		r.Post("/api/container/{name}/cert", uploadProxy.HandleCert)
 		r.Post("/api/container/{name}/keybox", uploadProxy.HandleKeybox)
 
+			// 文件管理（上传到宿主机 mmc/upload 目录）
+			fileManage := &FileManageHandler{auth: authService}
+			r.Post("/api/file/upload", fileManage.HandleUpload)
+			r.Get("/api/file/list", fileManage.HandleList)
+			r.Delete("/api/file/delete", fileManage.HandleDelete)
+			r.Get("/api/file/download", fileManage.HandleDownload)
 		// WebSocket（所有业务走这里）
 		r.Get("/ws", wsHub.HandleWS)
 

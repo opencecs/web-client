@@ -73,6 +73,12 @@ export const mobileRoutes = [
     meta: { mobile: true, perm: 'backup_manage' }
   },
   {
+    path: '/m/files',
+    name: 'MobileFile',
+    component: () => import('../views/mobile/MobileFile.vue'),
+    meta: { mobile: true, perm: 'backup_manage' }
+  },
+  {
     path: '/m/device',
     name: 'MobileDevice',
     component: () => import('../views/mobile/MobileDevice.vue'),

@@ -52,9 +52,9 @@
     <!-- 短信弹窗 -->
     <div v-if="showSmsDialog" class="sms-overlay" @mousedown.stop>
       <div class="sms-dialog">
-        <div style="font-size: 13px; color: #e0e0e0; margin-bottom: 8px; font-weight: bold">模拟短信</div>
-        <input v-model="smsAddress" placeholder="发送号码" style="width: 100%; margin-bottom: 6px; padding: 6px 8px; background: #333; border: 1px solid #555; border-radius: 4px; color: #e0e0e0; font-size: 12px" />
-        <textarea v-model="smsBody" placeholder="短信内容" rows="3" style="width: 100%; margin-bottom: 8px; padding: 6px 8px; background: #333; border: 1px solid #555; border-radius: 4px; color: #e0e0e0; font-size: 12px; resize: none"></textarea>
+        <div style="font-size: 13px; color: #f0f0f0; margin-bottom: 8px; font-weight: bold">模拟短信</div>
+        <input v-model="smsAddress" placeholder="发送号码" style="width: 100%; margin-bottom: 6px; padding: 6px 8px; background: #333; border: 1px solid #555; border-radius: 4px; color: #f0f0f0; font-size: 12px" />
+        <textarea v-model="smsBody" placeholder="短信内容" rows="3" style="width: 100%; margin-bottom: 8px; padding: 6px 8px; background: #333; border: 1px solid #555; border-radius: 4px; color: #f0f0f0; font-size: 12px; resize: none"></textarea>
         <div style="display: flex; gap: 6px; justify-content: flex-end">
           <button class="sidebar-btn" @click="showSmsDialog = false" style="width: auto; padding: 4px 12px; font-size: 12px">取消</button>
           <button class="sidebar-btn" @click="doSendSms" style="width: auto; padding: 4px 12px; font-size: 12px; background: #409eff; color: #fff">发送</button>
@@ -369,12 +369,11 @@ function onClipboardKey(e) {
   if (!e.ctrlKey && !e.metaKey) return
 
   if (e.code === 'KeyV' && !e.shiftKey) {
-    // Ctrl+V: 电脑剪贴板 → 安卓剪贴板
+    // Ctrl+V: 电脑剪贴板 → 安卓（通过 HTTP API 设置剪贴板 + 触发粘贴，绕过 WebRTC KEYTEXT 中文乱码）
     e.preventDefault()
     navigator.clipboard.readText().then(text => {
       if (!text) return
-      // 只通过 WS 写入安卓剪贴板，不直接调 iframe（避免文字出现两次）
-      device.request('clipboard:set', { name: props.container.name, text }).catch(() => {})
+      device.request('clipboard:paste', { name: props.container.name, text }).catch(() => {})
     }).catch(() => {})
   } else if (e.code === 'KeyX' && e.shiftKey) {
     // Ctrl+Shift+X: 安卓剪贴板 → 电脑剪贴板
@@ -393,18 +392,28 @@ function onClipboardKey(e) {
   }
 }
 
+// 接收 iframe 内 Ctrl+V 的粘贴请求（SDK 的 send_input_txt 中文乱码，改走 HTTP API）
+function onIframePaste(e) {
+  if (e.data?.action === 'pasteToAndroid' && e.data.text && props.container) {
+    device.request('clipboard:paste', { name: props.container.name, text: e.data.text }).catch(() => {})
+  }
+}
+
 watch(() => props.modelValue, (visible) => {
   if (visible) {
     window.addEventListener('keydown', onClipboardKey)
+    window.addEventListener('message', onIframePaste)
     startLatencyPoll()
   } else {
     window.removeEventListener('keydown', onClipboardKey)
+    window.removeEventListener('message', onIframePaste)
     stopLatencyPoll()
   }
 }, { immediate: true })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onClipboardKey)
+  window.removeEventListener('message', onIframePaste)
   stopLatencyPoll()
   if (iframeRef.value?.contentWindow) {
     try { iframeRef.value.contentWindow.globalCleanup?.() } catch {}
@@ -436,7 +445,7 @@ onBeforeUnmount(() => {
   background: #252525;
   cursor: move;
   user-select: none;
-  color: #e0e0e0;
+  color: #f0f0f0;
   font-size: 13px;
   flex-shrink: 0;
 }
@@ -447,7 +456,7 @@ onBeforeUnmount(() => {
 .projection-btn {
   cursor: pointer;
   font-size: 14px;
-  color: #999;
+  color: #b0b0b0;
   width: 22px;
   height: 22px;
   display: flex;
@@ -503,7 +512,7 @@ onBeforeUnmount(() => {
 }
 .sidebar-btn span {
   font-size: 8px;
-  color: #888;
+  color: #a0a0a0;
   line-height: 1;
 }
 .sidebar-btn:hover { background: #333; border-color: #555; }

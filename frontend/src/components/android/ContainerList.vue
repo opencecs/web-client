@@ -85,7 +85,7 @@
         <el-form-item label="源容器">{{ copyTarget?.name }}</el-form-item>
         <el-form-item label="目标坑位">
           <el-input-number v-model="copySlot" :min="0" :max="maxSlots" :step="1" />
-          <span style="color: #999; margin-left: 8px; font-size: 12px">0 = 自动分配</span>
+          <span style="color: #b0b0b0; margin-left: 8px; font-size: 12px">0 = 自动分配</span>
         </el-form-item>
         <el-form-item label="复制数量">
           <el-input-number v-model="copyCount" :min="1" :max="20" :step="1" />
@@ -109,7 +109,7 @@
       </el-form>
       <div v-if="changeImageTaskId" style="margin-top: 12px">
         <el-progress :percentage="changeImageProgress" :status="changeImageProgress >= 100 ? 'success' : ''" />
-        <p style="color: #999; font-size: 12px; margin-top: 4px">{{ changeImageStatus }}</p>
+        <p style="color: #b0b0b0; font-size: 12px; margin-top: 4px">{{ changeImageStatus }}</p>
       </div>
       <template #footer>
         <el-button @click="changeImageVisible = false">取消</el-button>

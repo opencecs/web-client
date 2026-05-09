@@ -118,7 +118,7 @@ function onClickSlot(slot) {
 }
 .slot-label {
   font-size: 12px;
-  color: #888;
+  color: #a0a0a0;
   font-weight: bold;
 }
 .container-name {
@@ -146,7 +146,7 @@ function onClickSlot(slot) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #555;
+  color: #909090;
   font-size: 13px;
 }
 </style>

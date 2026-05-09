@@ -1,10 +1,10 @@
 <template>
   <div>
     <!-- 容器 VPC 规则 -->
-    <el-card style="background: #1e1e1e; border-color: #333; margin-bottom: 16px">
+    <el-card style="margin-bottom: 16px">
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
-          <span style="color: #e0e0e0; font-weight: bold">容器 VPC 规则</span>
+          <span style="color: #f0f0f0; font-weight: bold">容器 VPC 规则</span>
           <el-space>
             <el-button size="small" type="primary" @click="openAssign()">分配 VPC</el-button>
             <el-button size="small" @click="openBatchAssign">批量分配</el-button>
@@ -29,7 +29,7 @@
           <template #default="{ row }">
             <span>{{ device.displayName(row.containerName) }}</span>
             <span v-if="device.displayName(row.containerName) !== row.containerName"
-              style="color: #666; font-size: 11px; margin-left: 4px">({{ row.containerName }})</span>
+              style="color: #909090; font-size: 11px; margin-left: 4px">({{ row.containerName }})</span>
           </template>
         </el-table-column>
         <el-table-column label="IP" prop="containerIP" width="130" />
@@ -73,24 +73,24 @@
     <el-dialog v-model="showAssign" :title="assignTarget ? '更换 VPC 节点' : '分配 VPC 节点'" width="800px"
       style="--el-dialog-padding-primary: 16px">
       <div v-if="assignTarget" style="margin-bottom: 12px">
-        <span style="color: #999">容器：</span>
-        <span style="color: #e0e0e0">{{ device.displayName(assignTarget.containerName) }}</span>
+        <span style="color: #b0b0b0">容器：</span>
+        <span style="color: #f0f0f0">{{ device.displayName(assignTarget.containerName) }}</span>
       </div>
       <div v-else style="margin-bottom: 12px">
-        <div style="color: #999; margin-bottom: 6px">选择容器</div>
+        <div style="color: #b0b0b0; margin-bottom: 6px">选择容器</div>
         <el-select v-model="assignForm.name" filterable placeholder="选择容器" style="width: 100%">
           <el-option v-for="c in availableContainers" :key="c.name" :label="device.displayName(c.name)" :value="c.name" />
         </el-select>
       </div>
 
-      <div style="color: #999; margin-bottom: 6px">选择分组</div>
+      <div style="color: #b0b0b0; margin-bottom: 6px">选择分组</div>
       <el-select v-model="assignForm.groupId" placeholder="先选择 VPC 分组" style="width: 100%; margin-bottom: 12px"
         @change="assignForm.vpcID = null">
         <el-option v-for="g in groups" :key="g.id" :label="`${g.alias}（${g.vpcs?.list?.length || 0} 个节点）`" :value="g.id" />
       </el-select>
 
       <template v-if="assignForm.groupId != null">
-        <div style="color: #999; margin-bottom: 6px">选择节点</div>
+        <div style="color: #b0b0b0; margin-bottom: 6px">选择节点</div>
         <div style="max-height: 280px; overflow-y: auto">
           <div v-for="node in assignGroupNodes" :key="node.id"
             :style="{
@@ -101,7 +101,7 @@
             }"
             @click="assignForm.vpcID = node.id">
             <el-radio :model-value="assignForm.vpcID" :value="node.id" style="margin-right: 10px" />
-            <span style="color: #e0e0e0; margin-right: 8px">{{ node.remarks || '未命名节点' }}</span>
+            <span style="color: #f0f0f0; margin-right: 8px">{{ node.remarks || '未命名节点' }}</span>
             <el-tag size="small" :type="protocolTagType(node.protocol)">{{ node.protocol || '-' }}</el-tag>
             <el-tag v-if="node.tag" size="small" type="info" style="margin-left: 4px">{{ node.tag }}</el-tag>
           </div>
@@ -118,25 +118,25 @@
     <!-- 批量分配弹窗 -->
     <el-dialog v-model="showBatchAssign" title="批量分配 VPC" width="800px"
       style="--el-dialog-padding-primary: 16px">
-      <div style="color: #999; margin-bottom: 6px">选择容器</div>
+      <div style="color: #b0b0b0; margin-bottom: 6px">选择容器</div>
       <div style="max-height: 160px; overflow-y: auto; border: 1px solid #333; border-radius: 4px; padding: 8px; margin-bottom: 12px">
         <el-checkbox-group v-model="batchAssignNames">
           <el-checkbox v-for="c in availableContainers" :key="c.name" :label="c.name" :value="c.name"
-            style="display: block; margin: 4px 0; color: #e0e0e0">
+            style="display: block; margin: 4px 0; color: #f0f0f0">
             {{ device.displayName(c.name) }}
           </el-checkbox>
         </el-checkbox-group>
       </div>
-      <div style="color: #999; font-size: 11px; margin-bottom: 12px">已选 {{ batchAssignNames.length }} 个</div>
+      <div style="color: #b0b0b0; font-size: 11px; margin-bottom: 12px">已选 {{ batchAssignNames.length }} 个</div>
 
-      <div style="color: #999; margin-bottom: 6px">选择分组</div>
+      <div style="color: #b0b0b0; margin-bottom: 6px">选择分组</div>
       <el-select v-model="batchAssignGroupId" placeholder="先选择 VPC 分组" style="width: 100%; margin-bottom: 12px"
         @change="batchAssignVpcID = null">
         <el-option v-for="g in groups" :key="g.id" :label="`${g.alias}（${g.vpcs?.list?.length || 0} 个节点）`" :value="g.id" />
       </el-select>
 
       <template v-if="batchAssignGroupId != null">
-        <div style="color: #999; margin-bottom: 6px">选择节点</div>
+        <div style="color: #b0b0b0; margin-bottom: 6px">选择节点</div>
         <div style="max-height: 200px; overflow-y: auto">
           <div v-for="node in batchAssignGroupNodes" :key="node.id"
             :style="{
@@ -147,7 +147,7 @@
             }"
             @click="batchAssignVpcID = node.id">
             <el-radio :model-value="batchAssignVpcID" :value="node.id" style="margin-right: 10px" />
-            <span style="color: #e0e0e0; margin-right: 8px">{{ node.remarks || '未命名节点' }}</span>
+            <span style="color: #f0f0f0; margin-right: 8px">{{ node.remarks || '未命名节点' }}</span>
             <el-tag size="small" :type="protocolTagType(node.protocol)">{{ node.protocol || '-' }}</el-tag>
             <el-tag v-if="node.tag" size="small" type="info" style="margin-left: 4px">{{ node.tag }}</el-tag>
           </div>
@@ -166,11 +166,11 @@
       style="--el-dialog-padding-primary: 16px">
       <template v-if="rules.length">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
-          <span style="color: #999">选择要移除 VPC 的容器</span>
+          <span style="color: #b0b0b0">选择要移除 VPC 的容器</span>
           <el-checkbox :model-value="batchRemoveNames.length === rules.length && rules.length > 0"
             :indeterminate="batchRemoveNames.length > 0 && batchRemoveNames.length < rules.length"
             @change="val => batchRemoveNames = val ? rules.map(r => r.containerName) : []"
-            style="color: #999">全选</el-checkbox>
+            style="color: #b0b0b0">全选</el-checkbox>
         </div>
         <div style="max-height: 350px; overflow-y: auto">
           <div v-for="r in rules" :key="r.containerName"
@@ -183,13 +183,13 @@
             @click="toggleBatchRemove(r.containerName)">
             <el-checkbox :model-value="batchRemoveNames.includes(r.containerName)" style="margin-right: 10px; pointer-events: none" />
             <div style="flex: 1; min-width: 0">
-              <div style="color: #e0e0e0">{{ device.displayName(r.containerName) }}</div>
-              <div style="color: #666; font-size: 11px; margin-top: 2px">{{ r.groupName }} / {{ r.vpcRemarks || '-' }}</div>
+              <div style="color: #f0f0f0">{{ device.displayName(r.containerName) }}</div>
+              <div style="color: #909090; font-size: 11px; margin-top: 2px">{{ r.groupName }} / {{ r.vpcRemarks || '-' }}</div>
             </div>
             <el-tag :type="r.containerState === 'running' ? 'success' : 'info'" size="small">{{ r.containerState || '-' }}</el-tag>
           </div>
         </div>
-        <div style="color: #999; font-size: 12px; margin-top: 8px">已选 {{ batchRemoveNames.length }} / {{ rules.length }}</div>
+        <div style="color: #b0b0b0; font-size: 12px; margin-top: 8px">已选 {{ batchRemoveNames.length }} / {{ rules.length }}</div>
       </template>
       <el-empty v-else description="当前没有容器绑定了 VPC，无需移除" :image-size="80" />
 

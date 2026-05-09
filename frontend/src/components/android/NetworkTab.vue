@@ -1,10 +1,10 @@
 <template>
   <div>
     <!-- 虚拟网卡 -->
-    <el-card style="background: #1e1e1e; border-color: #333; margin-bottom: 16px">
+    <el-card style="margin-bottom: 16px">
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
-          <span style="color: #e0e0e0; font-weight: bold">虚拟网卡</span>
+          <span style="color: #f0f0f0; font-weight: bold">虚拟网卡</span>
           <el-space>
             <el-button size="small" type="primary" @click="showBridgeCreate = true">创建网卡</el-button>
             <el-button size="small" :icon="Refresh" @click="fetchBridges" :loading="loadingBridges" circle />
@@ -50,11 +50,11 @@
       <el-form label-width="100px">
         <el-form-item label="网卡名称">
           <el-input v-model="bridgeForm.name" placeholder="自定义名称，如 game-net" />
-          <div style="color: #999; font-size: 11px; margin-top: 2px">仅支持英文、数字和短横线，如：my-bridge</div>
+          <div style="color: #b0b0b0; font-size: 11px; margin-top: 2px">仅支持英文、数字和短横线，如：my-bridge</div>
         </el-form-item>
         <el-form-item label="IP 地址段">
           <el-input v-model="bridgeForm.cidr" placeholder="如 172.18.0.0/16" />
-          <div style="color: #999; font-size: 11px; margin-top: 2px">
+          <div style="color: #b0b0b0; font-size: 11px; margin-top: 2px">
             CIDR 格式，不同网卡需使用不同网段，避免 IP 冲突。<br/>
             常用网段：172.18.0.0/16、172.19.0.0/16、10.10.0.0/16
           </div>
@@ -70,11 +70,11 @@
     <el-dialog v-model="showBridgeEdit" title="编辑虚拟网卡" width="450px">
       <el-form label-width="100px">
         <el-form-item label="网卡名称">
-          <span style="color: #e0e0e0">{{ editBridgeName }}</span>
+          <span style="color: #f0f0f0">{{ editBridgeName }}</span>
         </el-form-item>
         <el-form-item label="IP 地址段">
           <el-input v-model="editBridgeCidr" placeholder="新的 CIDR 地址段" />
-          <div style="color: #999; font-size: 11px; margin-top: 2px">修改后，已连接该网卡的容器可能需要重启才能生效</div>
+          <div style="color: #b0b0b0; font-size: 11px; margin-top: 2px">修改后，已连接该网卡的容器可能需要重启才能生效</div>
         </el-form-item>
       </el-form>
       <template #footer>

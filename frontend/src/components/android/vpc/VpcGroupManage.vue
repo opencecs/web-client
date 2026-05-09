@@ -1,10 +1,10 @@
 <template>
   <div>
     <!-- VPC 分组管理 -->
-    <el-card style="background: #1e1e1e; border-color: #333; margin-bottom: 16px">
+    <el-card style="margin-bottom: 16px">
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
-          <span style="color: #e0e0e0; font-weight: bold">VPC 分组</span>
+          <span style="color: #f0f0f0; font-weight: bold">VPC 分组</span>
           <el-space>
             <el-button size="small" type="primary" @click="openCreateGroup">添加订阅</el-button>
             <el-button size="small" @click="openSocksDialog">添加 SOCKS5</el-button>
@@ -80,7 +80,7 @@
         </el-table-column>
         <el-table-column label="订阅地址" prop="url" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
-            <span style="color: #999">{{ row.url || '-' }}</span>
+            <span style="color: #b0b0b0">{{ row.url || '-' }}</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right">
@@ -118,7 +118,7 @@
         <template v-if="createForm.source === 1">
           <el-form-item label="订阅 URL">
             <el-input v-model="createForm.url" placeholder="https://example.com/subscribe/token..." />
-            <div style="color: #999; font-size: 11px; margin-top: 2px">填入服务商提供的订阅链接，系统自动解析所有节点</div>
+            <div style="color: #b0b0b0; font-size: 11px; margin-top: 2px">填入服务商提供的订阅链接，系统自动解析所有节点</div>
           </el-form-item>
         </template>
 
@@ -135,14 +135,14 @@
           <el-form-item v-if="createForm.manualMode === 'link'" label="节点链接">
             <el-input v-model="createForm.addressText" type="textarea" :rows="6"
               placeholder="每行粘贴一个协议链接，例如：&#10;ss://YWVzLTI1Ni1jZmI6cGFzc3dvcmQ@1.2.3.4:8388#节点名&#10;vmess://eyJhZGQiOiIxLjIuMy40IiwicG9ydCI6IjQ0MyJ9&#10;trojan://password@1.2.3.4:443#节点名&#10;vless://uuid@1.2.3.4:443?type=tcp#节点名&#10;socks5://user:pass@1.2.3.4:1080#节点名" />
-            <div style="margin-top: 6px; padding: 8px 12px; background: #252525; border-radius: 4px; font-size: 11px; line-height: 1.8; color: #999">
+            <div style="margin-top: 6px; padding: 8px 12px; background: #252525; border-radius: 4px; font-size: 11px; line-height: 1.8; color: #b0b0b0">
               <b style="color: #b0b0b0">支持的协议格式：</b><br/>
-              <code style="color: #67c23a">ss://</code> Shadowsocks — <span style="color: #666">ss://method:password@host:port#name</span><br/>
-              <code style="color: #409eff">vmess://</code> VMess — <span style="color: #666">vmess://base64编码的JSON配置</span><br/>
-              <code style="color: #e6a23c">trojan://</code> Trojan — <span style="color: #666">trojan://password@host:port#name</span><br/>
-              <code style="color: #f56c6c">vless://</code> VLESS — <span style="color: #666">vless://uuid@host:port?type=tcp&security=tls#name</span><br/>
-              <code style="color: #909399">hysteria2://</code> Hysteria2 — <span style="color: #666">hysteria2://auth@host:port#name</span><br/>
-              <code style="color: #b88dff">socks5://</code> SOCKS5 — <span style="color: #666">socks5://user:password@host:port#name（无认证可省略 user:password@）</span><br/>
+              <code style="color: #67c23a">ss://</code> Shadowsocks — <span style="color: #909090">ss://method:password@host:port#name</span><br/>
+              <code style="color: #409eff">vmess://</code> VMess — <span style="color: #909090">vmess://base64编码的JSON配置</span><br/>
+              <code style="color: #e6a23c">trojan://</code> Trojan — <span style="color: #909090">trojan://password@host:port#name</span><br/>
+              <code style="color: #f56c6c">vless://</code> VLESS — <span style="color: #909090">vless://uuid@host:port?type=tcp&security=tls#name</span><br/>
+              <code style="color: #909399">hysteria2://</code> Hysteria2 — <span style="color: #909090">hysteria2://auth@host:port#name</span><br/>
+              <code style="color: #b88dff">socks5://</code> SOCKS5 — <span style="color: #909090">socks5://user:password@host:port#name（无认证可省略 user:password@）</span><br/>
               从客户端导出的分享链接可直接粘贴，每行一个
             </div>
           </el-form-item>
@@ -152,7 +152,7 @@
             <div v-for="(item, idx) in createForm.formNodes" :key="idx"
               style="border: 1px solid #333; border-radius: 6px; padding: 16px; margin-bottom: 12px; background: #252525">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
-                <span style="color: #e0e0e0; font-size: 13px; font-weight: bold">节点 {{ idx + 1 }}</span>
+                <span style="color: #f0f0f0; font-size: 13px; font-weight: bold">节点 {{ idx + 1 }}</span>
                 <el-button :icon="Delete" circle size="small" @click="createForm.formNodes.splice(idx, 1)"
                   :disabled="createForm.formNodes.length <= 1" />
               </div>
@@ -211,7 +211,7 @@
     <el-dialog v-model="showRename" title="重命名分组" width="400px">
       <el-form label-width="100px">
         <el-form-item label="当前名称">
-          <span style="color: #e0e0e0">{{ renameTarget?.alias }}</span>
+          <span style="color: #f0f0f0">{{ renameTarget?.alias }}</span>
         </el-form-item>
         <el-form-item label="新名称">
           <el-input v-model="renameAlias" placeholder="输入新的分组别名" />

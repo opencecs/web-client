@@ -1,12 +1,12 @@
 <template>
-  <div style="padding: 24px">
-    <h2 style="margin-top: 0; color: #e0e0e0">设备管理</h2>
+  <div style="padding: var(--space-lg)">
+    <h2 style="margin-top: 0; margin-bottom: var(--space-md); color: var(--text-primary); font-size: 18px; font-weight: 600">设备管理</h2>
 
     <!-- SDK 版本 -->
-    <el-card style="background: #1a1a1a; border-color: #2a2a2a">
+    <el-card>
       <template #header>
         <div style="display: flex; align-items: center; justify-content: space-between">
-          <span style="color: #e0e0e0; font-weight: bold">SDK 版本</span>
+          <span style="font-weight: bold">SDK 版本</span>
           <el-button type="primary" size="small" :loading="checking || upgrading" @click="handleCheckUpgrade">
             {{ upgrading ? '升级中...' : '检查升级' }}
           </el-button>
@@ -24,10 +24,10 @@
     </el-card>
 
     <!-- 面板版本 -->
-    <el-card style="background: #1a1a1a; border-color: #2a2a2a; margin-top: 16px">
+    <el-card style="margin-top: 16px">
       <template #header>
         <div style="display: flex; align-items: center; justify-content: space-between">
-          <span style="color: #e0e0e0; font-weight: bold">面板版本</span>
+          <span style="font-weight: bold">面板版本</span>
           <el-space>
             <el-button size="small" :loading="panelChecking" @click="checkPanelUpdate">检查更新</el-button>
             <el-popconfirm v-if="panelUpdateInfo.hasUpdate" title="更新期间面板将短暂断开连接（2-3秒），确认更新？" @confirm="doPanelUpdate">
@@ -46,7 +46,7 @@
           <el-tag v-else-if="panelUpdateInfo.latestVersion" type="info" size="small" style="margin-left: 8px">已是最新</el-tag>
         </el-descriptions-item>
       </el-descriptions>
-      <div v-if="panelUpdateInfo.changelog" style="margin-top: 12px; background: #141414; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #aaa; white-space: pre-wrap; line-height: 1.8">{{ panelUpdateInfo.changelog }}</div>
+      <div v-if="panelUpdateInfo.changelog" style="margin-top: 12px; background: #141414; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #c0c0c0; white-space: pre-wrap; line-height: 1.8">{{ panelUpdateInfo.changelog }}</div>
       <div v-if="panelUpdateStatus" style="margin-top: 12px">
         <el-progress :percentage="panelUpdateProgress" :status="panelProgressStatus" :stroke-width="16" striped striped-flow>
           <span style="font-size: 12px">{{ panelUpdateStatus }}</span>
@@ -55,10 +55,10 @@
     </el-card>
 
     <!-- 网络设置 -->
-    <el-card style="background: #1a1a1a; border-color: #2a2a2a; margin-top: 16px">
+    <el-card style="margin-top: 16px">
       <template #header>
         <div style="display: flex; align-items: center; justify-content: space-between">
-          <span style="color: #e0e0e0; font-weight: bold">网络设置</span>
+          <span style="font-weight: bold">网络设置</span>
           <el-button type="primary" size="small" :loading="savingNetwork" @click="saveNetworkSettings">保存</el-button>
         </div>
       </template>
@@ -73,8 +73,8 @@
     </el-card>
 
     <!-- 设备操作 -->
-    <el-card style="background: #1a1a1a; border-color: #2a2a2a; margin-top: 16px">
-      <template #header><span style="color: #e0e0e0; font-weight: bold">设备操作</span></template>
+    <el-card style="margin-top: 16px">
+      <template #header><span style="font-weight: bold">设备操作</span></template>
       <el-space>
         <el-popconfirm title="确认重启设备？" @confirm="handleReboot">
           <template #reference>
@@ -106,10 +106,10 @@
     </el-card>
 
     <!-- FRP 服务端 -->
-    <el-card style="background: #1a1a1a; border-color: #2a2a2a; margin-top: 16px">
+    <el-card style="margin-top: 16px">
       <template #header>
         <div style="display: flex; align-items: center; justify-content: space-between">
-          <span style="color: #e0e0e0; font-weight: bold">FRP 服务端</span>
+          <span style="font-weight: bold">FRP 服务端</span>
           <el-button type="primary" size="small" @click="openFrpsDashboard">打开管理面板</el-button>
         </div>
       </template>
@@ -118,7 +118,7 @@
         <el-descriptions-item label="端口">7500</el-descriptions-item>
         <el-descriptions-item label="账号">admin</el-descriptions-item>
         <el-descriptions-item label="密码">
-          <span style="color: #999">admin</span>
+          <span style="color: var(--text-secondary)">admin</span>
           <el-button type="primary" link size="small" style="margin-left: 8px" @click="copyFrpsPassword">复制</el-button>
         </el-descriptions-item>
       </el-descriptions>
@@ -127,7 +127,7 @@
     <!-- SSH 终端弹窗 -->
     <el-dialog v-model="sshDialogVisible" title="远程SSH" width="90%"
       :close-on-click-modal="false" @close="cleanupSSH" @opened="onSshDialogOpened" destroy-on-close
-      style="--el-dialog-bg-color: #1e1e1e; --el-dialog-border-radius: 8px; max-width: 1400px">
+      style="--el-dialog-border-radius: 8px; max-width: 1400px">
       <div v-if="!sshConnected" style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px">
         <el-select v-model="sshAccount" style="width: 180px" placeholder="选择账号" @change="onSshAccountChange">
           <el-option label="user / myt" value="user:myt" />
@@ -145,8 +145,8 @@
     </el-dialog>
 
     <!-- 账号授权 -->
-    <el-card style="background: #1a1a1a; border-color: #2a2a2a; margin-top: 16px">
-      <template #header><span style="color: #e0e0e0; font-weight: bold">魔云腾账号授权</span></template>
+    <el-card style="margin-top: 16px">
+      <template #header><span style="font-weight: bold">魔云腾账号授权</span></template>
 
       <!-- 未登录：显示账号密码输入 -->
       <div v-if="!mytStatus.loggedIn">
@@ -175,7 +175,7 @@
           </el-descriptions-item>
           <el-descriptions-item label="自动同步">
             <el-switch :model-value="mytStatus.autoSync" @change="mytToggleAuto" />
-            <span style="color: #999; font-size: 12px; margin-left: 8px">每10分钟</span>
+            <span style="color: #b0b0b0; font-size: 12px; margin-left: 8px">每10分钟</span>
           </el-descriptions-item>
           <el-descriptions-item label="设备绑定">
             <el-tag v-if="bindInfo.bindStatus === 1" type="success" size="small">已绑定</el-tag>

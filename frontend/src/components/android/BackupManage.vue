@@ -1,10 +1,10 @@
 <template>
   <div>
     <!-- 云机备份 -->
-    <el-card style="background: #1e1e1e; border-color: #333; margin-bottom: 16px">
+    <el-card style="margin-bottom: 16px">
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
-          <span style="color: #e0e0e0; font-weight: bold">云机备份</span>
+          <span style="color: #f0f0f0; font-weight: bold">云机备份</span>
           <el-button size="small" :icon="Refresh" @click="fetchBackups" :loading="loadingBackups" circle />
         </div>
       </template>
@@ -44,10 +44,10 @@
     </el-card>
 
     <!-- 机型备份 -->
-    <el-card style="background: #1e1e1e; border-color: #333">
+    <el-card style="">
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
-          <span style="color: #e0e0e0; font-weight: bold">机型备份</span>
+          <span style="color: #f0f0f0; font-weight: bold">机型备份</span>
           <el-button size="small" :icon="Refresh" @click="fetchModelBackups" :loading="loadingModels" circle />
         </div>
       </template>

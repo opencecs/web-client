@@ -1,10 +1,10 @@
 <template>
   <div>
     <!-- 全局域名过滤 -->
-    <el-card style="background: #1e1e1e; border-color: #333; margin-bottom: 16px">
+    <el-card style="margin-bottom: 16px">
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
-          <span style="color: #e0e0e0; font-weight: bold">全局域名过滤</span>
+          <span style="color: #f0f0f0; font-weight: bold">全局域名过滤</span>
           <el-space>
             <el-button size="small" type="primary" @click="openAddGlobal">添加规则</el-button>
             <el-button size="small" :icon="Refresh" @click="fetchGlobalFilter" :loading="loadingGlobal" circle />
@@ -41,10 +41,10 @@
     </el-card>
 
     <!-- 容器域名管理 -->
-    <el-card style="background: #1e1e1e; border-color: #333; margin-bottom: 16px">
+    <el-card style="margin-bottom: 16px">
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
-          <span style="color: #e0e0e0; font-weight: bold">容器域名规则</span>
+          <span style="color: #f0f0f0; font-weight: bold">容器域名规则</span>
           <el-select v-if="selectedContainer" v-model="selectedContainer" filterable clearable placeholder="切换容器" size="small"
             style="width: 250px" @change="onContainerChange">
             <el-option v-for="r in rules" :key="r.containerName"
@@ -56,13 +56,13 @@
       <!-- 未选择容器：醒目引导 -->
       <div v-if="!selectedContainer">
         <div v-if="rules.length" style="text-align: center; padding: 30px 0">
-          <div style="color: #e0e0e0; font-size: 15px; margin-bottom: 16px">选择一个已绑定 VPC 的容器，管理其域名规则</div>
+          <div style="color: #f0f0f0; font-size: 15px; margin-bottom: 16px">选择一个已绑定 VPC 的容器，管理其域名规则</div>
           <el-select v-model="selectedContainer" filterable placeholder="点击选择容器" size="large"
             style="width: 350px" @change="onContainerChange">
             <el-option v-for="r in rules" :key="r.containerName" :value="r.containerName">
               <div style="display: flex; justify-content: space-between; align-items: center; width: 100%">
                 <span>{{ device.displayName(r.containerName) }}</span>
-                <span style="color: #999; font-size: 11px">{{ r.groupName }} / {{ r.vpcRemarks || '-' }}</span>
+                <span style="color: #b0b0b0; font-size: 11px">{{ r.groupName }} / {{ r.vpcRemarks || '-' }}</span>
               </div>
             </el-option>
           </el-select>
@@ -75,7 +75,7 @@
         <!-- 域名直连 -->
         <div style="margin-bottom: 20px">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
-            <span style="color: #e0e0e0; font-weight: bold; font-size: 13px">域名直连</span>
+            <span style="color: #f0f0f0; font-weight: bold; font-size: 13px">域名直连</span>
             <el-space>
               <el-button size="small" type="primary" text @click="openAddDirect">添加</el-button>
               <el-popconfirm v-if="directDomains.length" title="清空域名直连列表？" @confirm="clearDirect">
@@ -85,7 +85,7 @@
               </el-popconfirm>
             </el-space>
           </div>
-          <div style="color: #999; font-size: 11px; margin-bottom: 6px">
+          <div style="color: #b0b0b0; font-size: 11px; margin-bottom: 6px">
             直连域名的流量<b>不走 VPC</b>，直接使用本地网络
           </div>
           <div v-if="directDomains.length" v-loading="loadingDirect">
@@ -100,7 +100,7 @@
         <!-- 域名过滤 -->
         <div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
-            <span style="color: #e0e0e0; font-weight: bold; font-size: 13px">域名过滤</span>
+            <span style="color: #f0f0f0; font-weight: bold; font-size: 13px">域名过滤</span>
             <el-space>
               <el-button size="small" type="primary" text @click="openAddFilter">添加</el-button>
               <el-popconfirm v-if="filterDomains.length" title="清空域名过滤列表？" @confirm="clearFilter">
@@ -110,7 +110,7 @@
               </el-popconfirm>
             </el-space>
           </div>
-          <div style="color: #999; font-size: 11px; margin-bottom: 6px">
+          <div style="color: #b0b0b0; font-size: 11px; margin-bottom: 6px">
             过滤域名的流量将被<b>拦截丢弃</b>，容器无法访问这些域名
           </div>
           <div v-if="filterDomains.length" v-loading="loadingFilter">
@@ -125,7 +125,7 @@
     <!-- 添加域名弹窗（通用） -->
     <el-dialog v-model="showAddDomain" :title="addDomainTitle" width="520px">
       <template v-if="addDomainType === 'global'">
-        <div style="color: #999; margin-bottom: 8px">匹配模式</div>
+        <div style="color: #b0b0b0; margin-bottom: 8px">匹配模式</div>
         <div style="margin-bottom: 16px">
           <div v-for="opt in matchModes" :key="opt.value"
             :style="{
@@ -137,17 +137,17 @@
             @click="addDomainPrefix = opt.value">
             <el-radio :model-value="addDomainPrefix" :value="opt.value" style="margin-right: 10px; margin-top: 1px" />
             <div>
-              <div style="color: #e0e0e0; font-size: 13px">{{ opt.label }}</div>
-              <div style="color: #666; font-size: 11px; margin-top: 2px">{{ opt.desc }}</div>
+              <div style="color: #f0f0f0; font-size: 13px">{{ opt.label }}</div>
+              <div style="color: #909090; font-size: 11px; margin-top: 2px">{{ opt.desc }}</div>
             </div>
           </div>
         </div>
       </template>
 
-      <div style="color: #999; margin-bottom: 6px">域名列表</div>
+      <div style="color: #b0b0b0; margin-bottom: 6px">域名列表</div>
       <el-input v-model="addDomainText" type="textarea" :rows="5"
         :placeholder="addDomainType === 'global' ? matchModePlaceholder : '每行一个域名，如：\ngoogle.com\nfacebook.com'" />
-      <div style="color: #999; font-size: 11px; margin-top: 4px">每行一个，添加后立即生效</div>
+      <div style="color: #b0b0b0; font-size: 11px; margin-top: 4px">每行一个，添加后立即生效</div>
 
       <template #footer>
         <el-button @click="showAddDomain = false">取消</el-button>

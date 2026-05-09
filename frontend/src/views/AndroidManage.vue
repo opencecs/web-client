@@ -1,6 +1,6 @@
 <template>
-  <div style="padding: 24px">
-    <el-tabs v-model="activeTab" type="border-card" style="background: #1a1a1a; border-color: #2a2a2a">
+  <div style="padding: var(--space-lg)">
+    <el-tabs v-model="activeTab" type="border-card">
       <el-tab-pane label="云机管理" name="slots">
         <!-- 操作栏 -->
         <SlotActions
@@ -21,7 +21,7 @@
 
         <!-- 截图预览 -->
         <div style="margin-top: 20px">
-          <h4 style="color: #e0e0e0; margin-bottom: 10px">实时截图</h4>
+          <h4 style="color: var(--text-primary); margin-bottom: 10px; font-weight: 600">实时截图</h4>
           <SlotScreenshots :max-slots="maxSlots" @projection="openProjection" />
         </div>
       </el-tab-pane>
@@ -53,7 +53,7 @@
           <span style="color: #e6a23c; font-size: 13px">将为 {{ aliasBatchTargets.length }} 个容器设置别名（自动加坑位号后缀）</span>
         </el-form-item>
         <el-form-item v-if="aliasTarget && currentAlias" label="当前别名">
-          <span style="color: #999">{{ currentAlias }}</span>
+          <span style="color: #b0b0b0">{{ currentAlias }}</span>
         </el-form-item>
         <el-form-item label="新别名">
           <el-input v-model="aliasInput" :placeholder="isBatchAlias ? '输入别名前缀（如：游戏）' : '输入别名（支持中文、空格、符号）'" clearable />
@@ -99,8 +99,8 @@
     <!-- S5 代理弹窗 -->
     <el-dialog v-model="s5Visible" title="S5 代理管理" width="550px" @opened="fetchS5Status">
       <div v-if="s5Container" style="margin-bottom: 12px">
-        <span style="color: #999">容器：</span>
-        <span style="color: #e0e0e0">{{ device.displayName(s5Container.name) }}</span>
+        <span style="color: #b0b0b0">容器：</span>
+        <span style="color: #f0f0f0">{{ device.displayName(s5Container.name) }}</span>
       </div>
 
       <!-- 当前状态 -->
@@ -108,45 +108,45 @@
         <div style="display: flex; align-items: center; justify-content: space-between">
           <div style="display: flex; align-items: center; gap: 10px">
             <el-tag type="success" size="small" effect="dark">已启动</el-tag>
-            <span style="color: #e0e0e0; font-size: 13px; font-family: monospace">{{ s5Status.addr }}</span>
+            <span style="color: #f0f0f0; font-size: 13px; font-family: monospace">{{ s5Status.addr }}</span>
           </div>
           <el-button type="danger" size="small" :loading="s5Stopping" @click="doStopS5">停止代理</el-button>
         </div>
       </div>
       <div v-else style="padding: 14px 16px; border-radius: 6px; margin-bottom: 16px; background: #1e1e1e; border: 1px dashed #555; text-align: center">
         <el-tag type="info" size="small">未启动</el-tag>
-        <span style="color: #666; margin-left: 8px; font-size: 13px">当前未配置 S5 代理</span>
+        <span style="color: #909090; margin-left: 8px; font-size: 13px">当前未配置 S5 代理</span>
       </div>
 
       <!-- 快捷解析 -->
       <div style="display: flex; gap: 8px; margin-bottom: 14px; align-items: center">
-        <div style="color: #999; font-size: 12px; white-space: nowrap">S5信息</div>
+        <div style="color: #b0b0b0; font-size: 12px; white-space: nowrap">S5信息</div>
         <el-input v-model="s5QuickInput" placeholder="格式: 地址:端口:用户名:密码（用户名密码可省略）" size="small" />
         <el-button size="small" @click="parseS5Quick">解析并填写</el-button>
       </div>
 
       <!-- 设置表单 -->
-      <div style="color: #e0e0e0; font-weight: bold; margin-bottom: 10px">{{ s5Status.status === 1 ? '修改代理' : '设置代理' }}</div>
+      <div style="color: #f0f0f0; font-weight: bold; margin-bottom: 10px">{{ s5Status.status === 1 ? '修改代理' : '设置代理' }}</div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px">
         <div>
-          <div style="color: #999; font-size: 12px; margin-bottom: 4px">服务器 IP</div>
+          <div style="color: #b0b0b0; font-size: 12px; margin-bottom: 4px">服务器 IP</div>
           <el-input v-model="s5Form.addr" placeholder="如 1.2.3.4" />
         </div>
         <div>
-          <div style="color: #999; font-size: 12px; margin-bottom: 4px">端口</div>
+          <div style="color: #b0b0b0; font-size: 12px; margin-bottom: 4px">端口</div>
           <el-input v-model="s5Form.port" placeholder="如 1080" />
         </div>
         <div>
-          <div style="color: #999; font-size: 12px; margin-bottom: 4px">用户名</div>
+          <div style="color: #b0b0b0; font-size: 12px; margin-bottom: 4px">用户名</div>
           <el-input v-model="s5Form.usr" placeholder="无认证可留空" />
         </div>
         <div>
-          <div style="color: #999; font-size: 12px; margin-bottom: 4px">密码</div>
+          <div style="color: #b0b0b0; font-size: 12px; margin-bottom: 4px">密码</div>
           <el-input v-model="s5Form.pwd" placeholder="无认证可留空" type="password" show-password />
         </div>
       </div>
       <div style="margin-bottom: 12px">
-        <div style="color: #999; font-size: 12px; margin-bottom: 4px">域名解析模式</div>
+        <div style="color: #b0b0b0; font-size: 12px; margin-bottom: 4px">域名解析模式</div>
         <el-radio-group v-model="s5Form.type">
           <el-radio value="1">本地解析</el-radio>
           <el-radio value="2">服务端解析</el-radio>
@@ -165,10 +165,10 @@
     <el-dialog v-model="switchModelVisible" title="切换机型" width="480px" destroy-on-close>
       <el-form label-width="80px">
         <el-form-item label="容器">
-          <span style="color: #999">{{ switchModelTarget?.name }}</span>
+          <span style="color: #b0b0b0">{{ switchModelTarget?.name }}</span>
         </el-form-item>
         <el-form-item label="安卓版本">
-          <span style="color: #999">{{ switchModelVersion === 'and14' ? 'Android 14' : 'Android 16' }}</span>
+          <span style="color: #b0b0b0">{{ switchModelVersion === 'and14' ? 'Android 14' : 'Android 16' }}</span>
         </el-form-item>
         <el-form-item label="手机型号">
           <el-select v-model="switchModelId" filterable clearable placeholder="留空随机分配"
@@ -176,7 +176,7 @@
             <el-option v-for="m in switchModelFiltered" :key="m.id || m.modelId"
               :label="m.name || m.modelName" :value="m.id || m.modelId" />
           </el-select>
-          <div style="color: #999; font-size: 11px; margin-top: 2px">
+          <div style="color: #b0b0b0; font-size: 11px; margin-top: 2px">
             {{ switchModelFiltered.length }} 个机型可选，留空随机分配
           </div>
         </el-form-item>
@@ -190,7 +190,7 @@
     <!-- 批量上传弹窗 -->
     <el-dialog v-model="batchUploadVisible" title="批量上传文件" width="600px" destroy-on-close>
       <div style="margin-bottom: 12px">
-        <span style="color: #999">将文件推送到以下容器的 /sdcard/upload/ 目录：</span>
+        <span style="color: #b0b0b0">将文件推送到以下容器的 /sdcard/upload/ 目录：</span>
         <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px">
           <el-tag v-for="c in batchUploadContainers" :key="c.name" size="small"
             :type="batchUploadResult[c.name]?.success ? 'success' : batchUploadResult[c.name]?.fail ? 'danger' : 'info'">
@@ -204,7 +204,7 @@
 
       <!-- 从文件管理选取文件 -->
       <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between">
-        <span style="color: #e0e0e0; font-weight: 600">选择文件</span>
+        <span style="color: #f0f0f0; font-weight: 600">选择文件</span>
         <span style="color: #e6a23c; font-size: 12px; margin-left: 8px; font-weight: bold">APK 文件会自动安装</span>
         <el-button size="small" :loading="batchFileLoading" @click="loadBatchFiles">刷新</el-button>
       </div>
@@ -216,14 +216,14 @@
           <template #default="{ row }">{{ formatBatchSize(row.size) }}</template>
         </el-table-column>
       </el-table>
-      <div v-if="!batchFileLoading && batchFileList.length === 0" style="color: #666; font-size: 13px; text-align: center; padding: 20px 0">
+      <div v-if="!batchFileLoading && batchFileList.length === 0" style="color: #909090; font-size: 13px; text-align: center; padding: 20px 0">
         暂无文件，请先到文件管理页面上传
       </div>
 
       <div v-if="batchUploadProgress.total > 0" style="margin-top: 12px">
         <el-progress :percentage="Math.round(batchUploadProgress.done / batchUploadProgress.total * 100)"
           :status="batchUploadProgress.fail > 0 ? 'exception' : undefined" />
-        <div style="color: #999; font-size: 12px; margin-top: 4px">
+        <div style="color: #b0b0b0; font-size: 12px; margin-top: 4px">
           {{ batchUploadProgress.done }} / {{ batchUploadProgress.total }}
           <span v-if="batchUploadProgress.fail > 0" style="color: #f56c6c">（{{ batchUploadProgress.fail }} 失败）</span>
         </div>

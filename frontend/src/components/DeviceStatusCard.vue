@@ -1,11 +1,11 @@
 <template>
   <el-card class="device-status-card" :body-style="{ padding: '16px' }">
     <template #header>
-      <span style="font-weight: bold; color: #e0e0e0">{{ title }}</span>
+      <span style="font-weight: bold">{{ title }}</span>
     </template>
     <div style="text-align: center">
       <div style="font-size: 28px; font-weight: bold; color: #409eff">{{ displayValue }}</div>
-      <div style="font-size: 12px; color: #888; margin-top: 4px">{{ subtitle }}</div>
+      <div style="font-size: 12px; color: #a0a0a0; margin-top: 4px">{{ subtitle }}</div>
       <el-progress v-if="showProgress" :percentage="percentage" :color="progressColor" :show-text="false"
         style="margin-top: 8px" />
     </div>
@@ -42,7 +42,6 @@ const progressColor = computed(() => {
 
 <style scoped>
 .device-status-card {
-  background: #1a1a1a;
-  border-color: #2a2a2a;
+  border-color: var(--border-color);
 }
 </style>

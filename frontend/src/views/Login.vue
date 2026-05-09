@@ -157,7 +157,7 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0a0a0a;
+  background: var(--bg-default);
   position: relative;
   overflow: hidden;
 }
@@ -172,23 +172,31 @@ async function handleLogin() {
 .bg-circle {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.08;
+  filter: blur(100px);
+  opacity: 0.12;
 }
 .bg-circle-1 {
-  width: 400px; height: 400px;
-  background: #409eff;
-  top: -100px; left: -100px;
+  width: 500px; height: 500px;
+  background: var(--accent);
+  top: -150px; left: -100px;
+  animation: float 8s ease-in-out infinite;
 }
 .bg-circle-2 {
-  width: 300px; height: 300px;
-  background: #67c23a;
-  bottom: -80px; right: -80px;
+  width: 350px; height: 350px;
+  background: var(--success);
+  bottom: -120px; right: -100px;
+  animation: float 10s ease-in-out infinite reverse;
 }
 .bg-circle-3 {
   width: 200px; height: 200px;
-  background: #e6a23c;
-  top: 50%; left: 60%;
+  background: var(--warning);
+  top: 50%; left: 65%;
+  animation: float 12s ease-in-out infinite 2s;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-30px); }
 }
 
 .login-wrapper {
@@ -202,26 +210,26 @@ async function handleLogin() {
 /* Logo 头部 */
 .login-header {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 32px;
 }
 .logo-icon {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .logo-img {
-  width: 64px;
-  height: 64px;
+  width: 68px;
+  height: 68px;
   object-fit: contain;
 }
 .login-title {
   font-size: 28px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--text-primary);
   margin: 0 0 6px;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
 }
 .login-subtitle {
   font-size: 13px;
-  color: #666;
+  color: var(--text-tertiary);
   margin: 0;
   letter-spacing: 1px;
 }
@@ -229,45 +237,81 @@ async function handleLogin() {
 /* 卡片 */
 .login-card {
   width: 380px;
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+}
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+:deep(.el-input__wrapper) {
+  background: var(--bg-elevated) !important;
+  box-shadow: 0 0 0 1px var(--border-color) inset !important;
+  border-radius: var(--radius-sm) !important;
+  transition: box-shadow var(--transition-fast);
+}
+:deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px var(--border-light) inset !important;
+}
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--accent) inset !important;
+}
+:deep(.el-input__inner) {
+  color: var(--text-primary) !important;
+}
+:deep(.el-input__prefix-inner .el-icon) {
+  color: var(--text-tertiary);
 }
 
 .login-btn {
   width: 100%;
   font-size: 15px;
   letter-spacing: 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
+  height: 42px;
+  transition: all var(--transition-fast);
+}
+.login-btn:not(.is-loading):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.3);
 }
 
 .login-error {
-  color: #f56c6c;
+  color: var(--danger);
   font-size: 13px;
   text-align: center;
   margin-bottom: 12px;
 }
 
 :deep(.is-error .el-input__wrapper) {
-  box-shadow: 0 0 0 1px #f56c6c inset;
+  box-shadow: 0 0 0 1px var(--danger) inset !important;
 }
 
 /* 默认账号提示 */
 .login-hint {
   text-align: center;
   font-size: 12px;
-  color: #666;
-  padding: 10px 0 0;
-  border-top: 1px solid #2a2a2a;
+  color: var(--text-tertiary);
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border-color);
 }
 .hint-code {
   display: inline-block;
-  background: #252525;
-  color: #409eff;
+  background: var(--bg-hover);
+  color: var(--accent);
   padding: 1px 8px;
   border-radius: 4px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
 }
@@ -280,49 +324,50 @@ async function handleLogin() {
 .info-toggle {
   text-align: center;
   font-size: 12px;
-  color: #555;
+  color: var(--text-tertiary);
   cursor: pointer;
   padding: 4px 0;
+  transition: color var(--transition-fast);
 }
-.info-toggle:hover { color: #409eff; }
+.info-toggle:hover { color: var(--accent); }
 .info-content {
   margin-top: 8px;
-  background: #141414;
-  border: 1px solid #2a2a2a;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   padding: 14px 16px;
   font-size: 12px;
-  color: #999;
+  color: var(--text-secondary);
 }
 .info-title {
-  color: #bbb;
+  color: var(--text-primary);
   font-weight: 600;
   margin-bottom: 6px;
   font-size: 12px;
 }
 .info-code {
   display: block;
-  background: #1a1a1a;
-  color: #67c23a;
+  background: var(--bg-elevated);
+  color: var(--success);
   padding: 6px 10px;
-  border-radius: 4px;
-  font-family: monospace;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
   font-size: 12px;
   word-break: break-all;
 }
 .info-note {
-  color: #888;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.6;
 }
 .info-note b {
-  color: #e6a23c;
+  color: var(--warning);
 }
 
 /* 底部版本号 */
 .login-footer {
-  margin-top: 20px;
+  margin-top: 24px;
   font-size: 11px;
-  color: #444;
+  color: #777;
 }
 </style>

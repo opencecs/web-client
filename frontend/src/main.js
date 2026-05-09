@@ -17,12 +17,13 @@ async function bootstrap() {
     app.use(router)
     app.mount('#app')
   } else {
-    // 桌面端：加载 Element Plus（原逻辑）
+    // 桌面端：加载 Element Plus + 全局主题
     const [{ default: App }, { default: router }] = await Promise.all([
       import('./App.vue'),
       import('./router/index.js'),
     ])
     await import('element-plus/theme-chalk/dark/css-vars.css')
+    await import('./theme.css')
     // 命令式组件样式（ElMessage/ElMessageBox/ElDialog/ElNotification 不在模板中使用，按需导入无法自动检测）
     await import('element-plus/theme-chalk/el-message.css')
     await import('element-plus/theme-chalk/el-message-box.css')

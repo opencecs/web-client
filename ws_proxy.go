@@ -71,10 +71,49 @@ func (c *WSClient) handleProxyAction(req WSRequest) {
 
 	case "clipboard:set":
 		text := getStr(req.Data, "text")
-		q := url.Values{}
-		q.Set("cmd", "2")
-		q.Set("text", text)
-		c.proxyRequest(req, port, "GET", "/clipboard?"+q.Encode(), nil)
+		// POST + JSON UTF-8 body 传中文，比 URL 编码更可靠
+		c.proxyRequest(req, port, "POST", "/clipboard", map[string]interface{}{
+			"cmd":  "2",
+			"text": text,
+		})
+
+	case "clipboard:paste":
+		// 设置安卓剪贴板后自动触发粘贴（绕过 WebRTC KEYTEXT 中文乱码）
+		text := getStr(req.Data, "text")
+		if text == "" {
+			c.sendResponse(req.ID, false, "文本为空", nil)
+			return
+		}
+		// 1) 通过容器 HTTP API 设置剪贴板（POST JSON UTF-8）
+		c.proxyRequest(req, port, "POST", "/clipboard", map[string]interface{}{
+			"cmd":  "2",
+			"text": text,
+		})
+		// 2) 延迟后通过 exec 触发粘贴
+		//    方案 A: input keyevent 279 (KEYCODE_PASTE，Android 7+)
+		//    方案 B: am broadcast (备用，部分容器支持)
+		pasteCmd := "input keyevent 279"
+		execBody, _ := json.Marshal(map[string]interface{}{
+			"name":    name,
+			"command": []string{"sd", "-c", pasteCmd},
+		})
+		execURL := fmt.Sprintf("http://%s/android/exec", c.hub.deviceAddr)
+		go func() {
+			time.Sleep(500 * time.Millisecond) // 等剪贴板设置完成
+			client := &http.Client{Timeout: 10 * time.Second}
+			httpReq, err := http.NewRequest("POST", execURL, strings.NewReader(string(execBody)))
+			if err != nil {
+				return
+			}
+			httpReq.Header.Set("Content-Type", "application/json; charset=utf-8")
+			resp, err := client.Do(httpReq)
+			if err != nil {
+				log.Printf("[ClipboardPaste] 容器 %s 触发粘贴失败: %v", name, err)
+				return
+			}
+			resp.Body.Close()
+			log.Printf("[ClipboardPaste] 容器 %s 触发粘贴 (HTTP %d)", name, resp.StatusCode)
+		}()
 
 	case "android:shake":
 		c.proxyRequest(req, port, "GET", "/modifydev?cmd=17&shake=1", nil)
@@ -120,7 +159,7 @@ func (c *WSClient) handleProxyAction(req WSRequest) {
 			c.sendResponse(req.ID, false, err.Error(), nil)
 			return
 		}
-		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("Content-Type", "application/json; charset=utf-8")
 		resp, err := client.Do(httpReq)
 		if err != nil {
 			c.sendResponse(req.ID, false, "旋转设备失败: "+err.Error(), nil)
@@ -150,7 +189,7 @@ func (c *WSClient) proxyRequest(req WSRequest, port int, method, path string, bo
 		return
 	}
 	if body != nil {
-		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("Content-Type", "application/json; charset=utf-8")
 	}
 
 	resp, err := client.Do(httpReq)

@@ -1,6 +1,6 @@
 <template>
-  <div style="padding: 24px">
-    <h2 style="margin-top: 0; color: #e0e0e0">设备概览</h2>
+  <div style="padding: var(--space-lg)">
+    <h2 style="margin-top: 0; margin-bottom: var(--space-md); color: var(--text-primary); font-size: 18px; font-weight: 600">设备概览</h2>
 
     <el-row :gutter="16">
       <el-col :span="6">
@@ -22,8 +22,8 @@
 
     <el-row :gutter="16" style="margin-top: 16px">
       <el-col :span="12">
-        <el-card style="background: #1a1a1a; border-color: #2a2a2a">
-          <template #header><span style="color: #e0e0e0; font-weight: bold">设备信息</span></template>
+        <el-card>
+          <template #header><span style="font-weight: bold">设备信息</span></template>
           <el-descriptions :column="1" border size="small">
             <el-descriptions-item label="SDK 版本">{{ info.version || '-' }}</el-descriptions-item>
             <el-descriptions-item label="设备型号">{{ info.model || '-' }}</el-descriptions-item>
@@ -35,8 +35,8 @@
         </el-card>
       </el-col>
       <el-col :span="12">
-        <el-card style="background: #1a1a1a; border-color: #2a2a2a">
-          <template #header><span style="color: #e0e0e0; font-weight: bold">存储信息</span></template>
+        <el-card>
+          <template #header><span style="font-weight: bold">存储信息</span></template>
           <el-descriptions :column="1" border size="small">
             <el-descriptions-item label="硬盘型号">{{ info.mmcmodel || '-' }}</el-descriptions-item>
             <el-descriptions-item label="硬盘温度">{{ info.mmctemp || '-' }}°C</el-descriptions-item>

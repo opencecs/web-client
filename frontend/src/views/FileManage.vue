@@ -1,9 +1,9 @@
 <template>
-  <div style="padding: 24px">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px">
+  <div style="padding: var(--space-lg)">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-md)">
       <div style="display: flex; align-items: center; gap: 12px">
-        <h3 style="margin: 0; color: #e0e0e0">文件管理</h3>
-        <span style="color: #999; font-size: 13px">共 {{ files.length }} 个文件，{{ totalSize }}</span>
+        <h3 style="margin: 0; color: var(--text-primary); font-size: 18px; font-weight: 600">文件管理</h3>
+        <span style="color: var(--text-secondary); font-size: 13px">共 {{ files.length }} 个文件，{{ totalSize }}</span>
       </div>
       <div style="display: flex; gap: 8px">
         <el-button size="small" type="danger" :disabled="!selected.length" @click="batchDelete">
@@ -41,7 +41,7 @@
     <!-- 上传进度 -->
     <div v-if="uploadQueue.length" style="margin-top: 16px">
       <div v-for="item in uploadQueue" :key="item.name" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px">
-        <span style="color: #e0e0e0; font-size: 13px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ item.name }}</span>
+        <span style="color: #f0f0f0; font-size: 13px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ item.name }}</span>
         <el-progress :percentage="item.progress" :status="item.status" style="width: 200px" />
       </div>
     </div>

@@ -1,9 +1,9 @@
 <template>
-  <div style="padding: 24px">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px">
+  <div style="padding: var(--space-lg)">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-md)">
       <div style="display: flex; align-items: center; gap: 12px">
-        <h3 style="margin: 0; color: #e0e0e0">备份管理</h3>
-        <span style="color: #999; font-size: 13px">共 {{ containerBackups.length }} 个备份</span>
+        <h3 style="margin: 0; color: var(--text-primary); font-size: 18px; font-weight: 600">备份管理</h3>
+        <span style="color: var(--text-secondary); font-size: 13px">共 {{ containerBackups.length }} 个备份</span>
         <el-button size="small" type="danger" :disabled="!selectedRows.length" @click="batchDeleteBackups">
           批量删除{{ selectedRows.length ? ` (${selectedRows.length})` : '' }}
         </el-button>
@@ -18,12 +18,12 @@
         <el-table-column type="selection" width="45" />
         <el-table-column label="名称" min-width="140">
           <template #default="{ row }">
-            <span style="color: #000">{{ device.displayName(row.name) }}</span>
+            <span style="color: #f0f0f0">{{ device.displayName(row.name) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="镜像版本" min-width="140" align="center">
           <template #default="{ row }">
-            <span style="color: #999; font-size: 13px">{{ matchMirrorName(row.image) }}</span>
+            <span style="color: #b0b0b0; font-size: 13px">{{ matchMirrorName(row.image) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="运行状态" width="100" align="center">
@@ -61,7 +61,7 @@
     <el-dialog v-model="renameVisible" title="修改名称" width="420px">
       <el-form :model="renameForm" :rules="renameRules" ref="renameFormRef" label-width="70px">
         <el-form-item label="容器">
-          <span style="color: #999; font-size: 13px">{{ renameTarget }}</span>
+          <span style="color: #b0b0b0; font-size: 13px">{{ renameTarget }}</span>
         </el-form-item>
         <el-form-item label="别名" prop="alias">
           <el-input v-model="renameForm.alias" placeholder="输入别名（支持中文、空格、符号）" clearable />

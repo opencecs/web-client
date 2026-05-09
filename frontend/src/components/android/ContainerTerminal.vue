@@ -1,7 +1,7 @@
 <template>
   <el-dialog :modelValue="modelValue" @update:modelValue="$emit('update:modelValue', $event)"
     title="容器终端" width="850px" :close-on-click-modal="false" @close="cleanup" destroy-on-close
-    style="--el-dialog-bg-color: #1e1e1e; --el-dialog-border-radius: 8px">
+    style="--el-dialog-border-radius: 8px">
     <div v-if="container" style="margin-bottom: 8px">
       <el-tag size="small">{{ device.displayName(container.name) }}</el-tag>
     </div>

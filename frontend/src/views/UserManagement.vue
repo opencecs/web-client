@@ -1,7 +1,7 @@
 <template>
-  <div style="padding: 24px">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px">
-      <h2 style="margin: 0; color: #e0e0e0">用户管理</h2>
+  <div style="padding: var(--space-lg)">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-md)">
+      <h2 style="margin: 0; color: var(--text-primary); font-size: 18px; font-weight: 600">用户管理</h2>
       <el-button type="primary" @click="showCreateDialog">新增用户</el-button>
     </div>
 
@@ -80,7 +80,7 @@
     <el-dialog v-model="permVisible" :title="`权限配置 — ${permUser?.username}`" width="600px">
       <div style="margin-bottom: 16px">
         <div style="display: flex; align-items: center; margin-bottom: 8px">
-          <span style="color: #e0e0e0; font-weight: bold; margin-right: 12px">坑位权限</span>
+          <span style="color: #f0f0f0; font-weight: bold; margin-right: 12px">坑位权限</span>
           <el-button size="small" text @click="selectAllSlots">全选</el-button>
           <el-button size="small" text @click="selectNoSlots">取消全选</el-button>
         </div>
@@ -100,7 +100,7 @@
       <el-divider />
 
       <div>
-        <span style="color: #e0e0e0; font-weight: bold; display: block; margin-bottom: 8px">功能权限</span>
+        <span style="color: #f0f0f0; font-weight: bold; display: block; margin-bottom: 8px">功能权限</span>
         <div style="display: flex; align-items: center; margin-bottom: 8px">
           <el-button size="small" text @click="selectAllPerms">全选</el-button>
           <el-button size="small" text @click="selectNoPerms">取消全选</el-button>

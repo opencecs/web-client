@@ -210,10 +210,10 @@ watch(() => device.online, (v) => { if (v) loadData() })
   justify-content: space-between;
   align-items: center;
 }
-.slot-num { font-size: 12px; color: #888; font-weight: bold; }
-.slot-auth { font-size: 10px; color: #666; }
+.slot-num { font-size: 12px; color: #a0a0a0; font-weight: bold; }
+.slot-auth { font-size: 10px; color: #909090; }
 .slot-name {
-  font-size: 13px; color: #e0e0e0;
+  font-size: 13px; color: #f0f0f0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   margin: 4px 0;
 }
@@ -225,6 +225,6 @@ watch(() => device.online, (v) => { if (v) loadData() })
 .slot-status { display: flex; align-items: center; gap: 4px; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .dot-running { background: #67c23a; box-shadow: 0 0 4px #67c23a; }
-.dot-stopped { background: #666; }
-.status-text { font-size: 11px; color: #999; }
+.dot-stopped { background: #909090; }
+.status-text { font-size: 11px; color: #b0b0b0; }
 </style>

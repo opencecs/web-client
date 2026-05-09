@@ -1,3 +1,27 @@
+// 修复中文粘贴乱码：monkey-patch send_input_txt，拦截含非 ASCII 的文本
+// WebRTC KEYTEXT 通道对中文 UTF-8 解码有 bug，改为通过父窗口 HTTP API 设置剪贴板+触发粘贴
+(function() {
+    var _orig = LGAIR.prototype.send_input_txt;
+    LGAIR.prototype.send_input_txt = function(text, type) {
+        // 检查是否包含非 ASCII 字符（中文等）
+        var hasNonAscii = false;
+        if (typeof text === 'string') {
+            for (var i = 0; i < text.length; i++) {
+                if (text.charCodeAt(i) > 127) { hasNonAscii = true; break; }
+            }
+        }
+        if (hasNonAscii) {
+            // 非 ASCII 文本：通知父窗口通过 HTTP API 处理，不走 KEYTEXT
+            if (window.parent !== window) {
+                window.parent.postMessage({ action: 'pasteToAndroid', text: text }, '*');
+            }
+            return;
+        }
+        // 纯 ASCII 文本：走原始 KEYTEXT 通道
+        return _orig.apply(this, arguments);
+    };
+})();
+
 // 滚轮滚动状态
 var wheelState = {
     accumulatedDelta: 0,

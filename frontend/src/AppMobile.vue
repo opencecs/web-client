@@ -129,7 +129,7 @@ html, body {
   margin: 0;
   padding: 0;
   background: #0a0a0a;
-  color: #e0e0e0;
+  color: #f0f0f0;
 }
 html.dark {
   color-scheme: dark;
@@ -159,7 +159,7 @@ html.dark {
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
-  color: #e0e0e0;
+  color: #f0f0f0;
   border-radius: 20px;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);

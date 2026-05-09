@@ -7,14 +7,14 @@
         <el-col :span="12">
           <el-form-item label="容器别名">
             <el-input v-model="form.alias" placeholder="可选，创建后自动设置别名" clearable />
-            <div style="color: #999; font-size: 11px; margin-top: 2px">容器名称自动生成，别名用于显示</div>
+            <div style="color: #b0b0b0; font-size: 11px; margin-top: 2px">容器名称自动生成，别名用于显示</div>
           </el-form-item>
 
           <el-form-item label="坑位号">
             <div style="margin-bottom: 4px">
               <el-button size="small" text @click="selectAllSlots">全选</el-button>
               <el-button size="small" text @click="clearSlots">清空</el-button>
-              <span style="color: #999; font-size: 11px; margin-left: 8px" v-if="selectedSlots.size > 0">
+              <span style="color: #b0b0b0; font-size: 11px; margin-left: 8px" v-if="selectedSlots.size > 0">
                 已选 {{ selectedSlots.size }} 个坑位
               </span>
             </div>
@@ -26,7 +26,7 @@
                 {{ slot.num }}
               </div>
             </div>
-            <div style="color: #999; font-size: 11px; margin-top: 4px">
+            <div style="color: #b0b0b0; font-size: 11px; margin-top: 4px">
               支持多选，每个坑位创建一个容器；同一坑位可创建多个容器，但同时只能运行一个
             </div>
             <div v-if="hasOccupiedSlot" style="color: #E6A23C; font-size: 11px; margin-top: 4px">
@@ -109,7 +109,7 @@
             </el-form-item>
           </template>
           <div v-else-if="form.latitude && form.longitude"
-            style="padding: 0 0 8px 100px; color: #999; font-size: 12px">
+            style="padding: 0 0 8px 100px; color: #b0b0b0; font-size: 12px">
             坐标: {{ form.latitude }}, {{ form.longitude }}
           </div>
         </el-col>
@@ -149,7 +149,7 @@
               <el-option v-for="m in filteredPhoneModels" :key="m.id || m.modelId"
                 :label="m.name || m.modelName" :value="m.id || m.modelId" />
             </el-select>
-            <div style="color: #999; font-size: 11px; margin-top: 2px">
+            <div style="color: #b0b0b0; font-size: 11px; margin-top: 2px">
               已过滤为 {{ androidVersion === 'and16' ? 'Android 16' : 'Android 14' }} 机型
               （{{ filteredPhoneModels.length }} 个）
             </div>
@@ -202,7 +202,7 @@
               :loading="loadingBridges">
               <el-option v-for="b in bridgeOptions" :key="b.name" :label="`${b.name}（${b.cidr}）`" :value="b.name" />
             </el-select>
-            <div style="color: #999; font-size: 11px; margin-top: 2px">
+            <div style="color: #b0b0b0; font-size: 11px; margin-top: 2px">
               为容器指定独立的虚拟网卡，不同网卡的容器网络互相隔离。留空则使用系统默认网卡。
             </div>
           </el-form-item>
@@ -213,23 +213,23 @@
     <!-- 任务进度 -->
     <div v-if="taskPhase" style="margin-top: 12px; padding: 16px; background: #252525; border-radius: 6px">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px">
-        <span style="color: #e0e0e0; font-weight: bold">{{ phaseLabel }}</span>
+        <span style="color: #f0f0f0; font-weight: bold">{{ phaseLabel }}</span>
         <el-space>
-          <span v-if="!taskDone" style="color: #999; font-size: 12px">已等待 {{ elapsedTime }}</span>
+          <span v-if="!taskDone" style="color: #b0b0b0; font-size: 12px">已等待 {{ elapsedTime }}</span>
           <el-tag :type="taskTagType" size="small">{{ phaseTag }}</el-tag>
         </el-space>
       </div>
       <template v-if="taskPhase === 'pulling'">
         <el-progress :percentage="pullPercent" :stroke-width="12" :show-text="false" striped striped-flow />
-        <div style="color: #999; font-size: 12px; margin-top: 6px">{{ pullStatusText }}</div>
+        <div style="color: #b0b0b0; font-size: 12px; margin-top: 6px">{{ pullStatusText }}</div>
       </template>
       <template v-else-if="taskPhase === 'extracting'">
         <el-progress :percentage="50" :stroke-width="12" :show-text="false" striped striped-flow :indeterminate="true" />
-        <div style="color: #999; font-size: 12px; margin-top: 6px">正在解压镜像层...</div>
+        <div style="color: #b0b0b0; font-size: 12px; margin-top: 6px">正在解压镜像层...</div>
       </template>
       <template v-else-if="taskPhase === 'creating'">
         <el-progress :percentage="createTotal ? Math.round(createCurrent / createTotal * 100) : 0" :stroke-width="12" :show-text="false" striped striped-flow />
-        <div style="color: #999; font-size: 12px; margin-top: 6px">
+        <div style="color: #b0b0b0; font-size: 12px; margin-top: 6px">
           {{ createSlotNum > 0 ? `正在创建 ${createCurrent}/${createTotal} (坑位 ${createSlotNum})...` : `等待设备就绪，准备创建下一个 (${createCurrent}/${createTotal})...` }}
         </div>
       </template>
@@ -687,7 +687,7 @@ onBeforeUnmount(() => stopTask())
 .slot-item.active.slot-red { background: #F56C6C; color: #fff; border-color: #F56C6C; }
 .slot-item.active.slot-gray { background: #909399; color: #fff; border-color: #909399; }
 .feature-desc {
-  color: #999;
+  color: #b0b0b0;
   font-size: 11px;
   margin-left: 8px;
   line-height: 1.4;

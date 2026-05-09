@@ -74,8 +74,8 @@ onMounted(() => {
 <style scoped>
 .sidebar {
   background: #141414;
-  border-right: 1px solid #2a2a2a;
-  transition: width 0.2s;
+  border-right: 1px solid var(--border-color);
+  transition: width var(--transition-normal);
   overflow: hidden;
   position: fixed;
   top: 0;
@@ -87,36 +87,36 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
+  padding: var(--space-md);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
-  border-bottom: 1px solid #2a2a2a;
+  border-bottom: 1px solid var(--border-color);
 }
 .sidebar-header:hover .collapse-icon {
-  color: #409eff;
+  color: var(--accent);
 }
 .sidebar-title {
-  color: #409eff;
+  color: var(--accent);
   margin: 0;
   font-size: 18px;
 }
 .sidebar-ver {
   font-size: 11px;
-  color: #666;
+  color: var(--text-tertiary);
   margin-left: 4px;
 }
 .collapse-icon {
-  color: #666;
+  color: var(--text-tertiary);
   flex-shrink: 0;
-  transition: color 0.2s;
+  transition: color var(--transition-fast);
 }
 .collapse-icon-center {
-  color: #888;
+  color: var(--text-secondary);
   margin: 0 auto;
-  transition: color 0.2s;
+  transition: color var(--transition-fast);
 }
 .sidebar-header:hover .collapse-icon-center {
-  color: #409eff;
+  color: var(--accent);
 }
 </style>

@@ -138,5 +138,5 @@ async function doConfirmedAction() {
   margin-bottom: 12px;
   flex-wrap: wrap;
 }
-.selection-hint { color: #999; font-size: 12px; }
+.selection-hint { color: #b0b0b0; font-size: 12px; }
 </style>

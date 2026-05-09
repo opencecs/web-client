@@ -1,7 +1,7 @@
 <template>
   <el-dialog :modelValue="modelValue" @update:modelValue="$emit('update:modelValue', $event)"
     title="备份切换" width="600px" destroy-on-close>
-    <p style="color: #999; font-size: 13px; margin-bottom: 12px">
+    <p style="color: #b0b0b0; font-size: 13px; margin-bottom: 12px">
       坑位 {{ slotNum }} 的所有容器（同一坑位只能同时运行一个，点击选择要切换的容器）
     </p>
     <div class="backup-list">
@@ -35,7 +35,7 @@
     <el-dialog v-model="aliasVisible" title="设置别名" width="360px" append-to-body>
       <el-form label-width="70px">
         <el-form-item label="容器">
-          <span style="color: #999; font-size: 12px">{{ aliasTargetName }}</span>
+          <span style="color: #b0b0b0; font-size: 12px">{{ aliasTargetName }}</span>
         </el-form-item>
         <el-form-item label="别名">
           <el-input v-model="aliasInput" placeholder="输入别名" clearable />
@@ -201,12 +201,12 @@ async function doSwitch() {
 .backup-name {
   font-size: 14px;
   font-weight: bold;
-  color: #e0e0e0;
+  color: #f0f0f0;
 }
 .backup-meta {
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: #999;
+  color: #b0b0b0;
 }
 </style>

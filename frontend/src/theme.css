@@ -1,0 +1,54 @@
+/* ===== 魔云互联 全局设计 Token ===== */
+
+:root {
+  /* 背景层级 — 柔和的深色，比纯黑护眼 */
+  --bg-default: #0f0f0f;
+  --bg-card: #1a1a1a;
+  --bg-elevated: #222;
+  --bg-hover: #252525;
+  --bg-active: #2a2a2a;
+
+  /* 边框 */
+  --border-color: #2c2c2c;
+  --border-light: #333;
+
+  /* 文本层级 — 提高对比度，确保可读性 */
+  --text-primary: #f0f0f0;
+  --text-secondary: #b0b0b0;
+  --text-tertiary: #777;
+
+  /* 品牌色 */
+  --accent: #409eff;
+  --accent-hover: #66b1ff;
+  --success: #67c23a;
+  --warning: #e6a23c;
+  --danger: #f56c6c;
+
+  /* 圆角 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* 间距 */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+
+  /* 阴影 */
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.3);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+  /* 字体 — 中文优先 */
+  --font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue',
+    'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+
+  /* 过渡 */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+
+  /* 头部高度 */
+  --header-height: 48px;
+}

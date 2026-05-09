@@ -1,15 +1,15 @@
 <template>
   <div>
     <!-- 拉取进度区域（置顶显示） -->
-    <el-card v-if="pullTasks.size > 0" style="background: #1e1e1e; border-color: #333; margin-bottom: 16px">
+    <el-card v-if="pullTasks.size > 0" style="margin-bottom: 16px">
       <template #header>
-        <span style="color: #e0e0e0; font-weight: bold">镜像拉取任务 ({{ pullTasks.size }})</span>
+        <span style="color: #f0f0f0; font-weight: bold">镜像拉取任务 ({{ pullTasks.size }})</span>
       </template>
       <div v-for="[url, task] in pullTasks" :key="url" style="margin-bottom: 16px; padding: 12px; background: #252525; border-radius: 6px">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
           <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%;" :title="url">
-            <span style="color: #e0e0e0; font-size: 13px; font-weight: 600;">{{ task.name || getImageShortName(url) }}</span>
-            <span v-if="task.name" style="color: #888; font-size: 12px; margin-left: 4px;">({{ getImageShortName(url) }})</span>
+            <span style="color: #f0f0f0; font-size: 13px; font-weight: 600;">{{ task.name || getImageShortName(url) }}</span>
+            <span v-if="task.name" style="color: #a0a0a0; font-size: 12px; margin-left: 4px;">({{ getImageShortName(url) }})</span>
           </div>
           <el-tag :type="task.phase === 'done' ? 'success' : task.phase === 'failed' ? 'danger' : 'warning'" size="small">
             {{ phaseLabel(task.phase) }}
@@ -17,11 +17,11 @@
         </div>
         <template v-if="task.phase === 'pulling'">
           <el-progress :percentage="task.percent" :stroke-width="12" :show-text="false" striped striped-flow />
-          <div style="color: #999; font-size: 12px; margin-top: 4px">{{ task.text || '准备下载...' }}</div>
+          <div style="color: #b0b0b0; font-size: 12px; margin-top: 4px">{{ task.text || '准备下载...' }}</div>
         </template>
         <template v-else-if="task.phase === 'extracting'">
           <el-progress :percentage="50" :stroke-width="12" :show-text="false" striped striped-flow :indeterminate="true" />
-          <div style="color: #999; font-size: 12px; margin-top: 4px">{{ task.text || '正在解压镜像层...' }}</div>
+          <div style="color: #b0b0b0; font-size: 12px; margin-top: 4px">{{ task.text || '正在解压镜像层...' }}</div>
         </template>
         <template v-else-if="task.phase === 'done'">
           <el-progress :percentage="100" status="success" :stroke-width="12" />
@@ -35,10 +35,10 @@
     </el-card>
 
     <!-- 在线镜像列表（合并本地状态） -->
-    <el-card style="background: #1e1e1e; border-color: #333; margin-bottom: 16px">
+    <el-card style="margin-bottom: 16px">
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
-          <span style="color: #e0e0e0; font-weight: bold">在线镜像</span>
+          <span style="color: #f0f0f0; font-weight: bold">在线镜像</span>
           <el-space>
             <el-popconfirm title="确认清理所有未使用的镜像？" @confirm="pruneImages">
               <template #reference>
@@ -77,7 +77,7 @@
               </template>
             </el-popconfirm>
             <el-button v-else-if="!pullTasks.has(row.url)" type="primary" size="small" text @click="pullFromMirror(row)">拉取</el-button>
-            <span v-else style="color: #999; font-size: 12px">拉取中...</span>
+            <span v-else style="color: #b0b0b0; font-size: 12px">拉取中...</span>
           </template>
         </el-table-column>
       </el-table>

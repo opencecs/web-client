@@ -120,6 +120,7 @@ onBeforeUnmount(() => {
 html, body {
   margin: 0;
   padding: 0;
+  height: 100%;
   background: var(--bg-default);
   color: var(--text-primary);
   font-family: var(--font-family);
@@ -130,10 +131,10 @@ html.dark {
   color-scheme: dark;
 }
 .app-container {
-  min-height: 100vh;
+  height: 100%;
 }
 .main-wrapper {
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   transition: margin-left var(--transition-normal);
@@ -157,6 +158,8 @@ html.dark {
   flex: 1;
   padding: 0;
   background: var(--bg-default);
+  overflow-y: auto;
+  position: relative;
 }
 .app-main > * {
   animation: fadeInUp 0.25s ease both;
@@ -245,7 +248,7 @@ html.dark {
   background: var(--bg-elevated) !important;
 }
 
-/* 弹窗 */
+/* 弹窗 — 仅覆盖颜色，不干涉 Element Plus 自带布局 */
 .el-dialog {
   --el-dialog-bg-color: var(--bg-card) !important;
   border-radius: var(--radius-lg) !important;

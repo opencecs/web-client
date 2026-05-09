@@ -9,7 +9,8 @@ async function bootstrap() {
       import('./AppMobile.vue'),
       import('./router/index.js'),
     ])
-    await import('vant/lib/index.css')
+    // vant CSS (移动端按需导入, 桌面端跳过)
+    // await import('vant/lib/index.css')
     await import('./mobile-theme.css')
 
     const app = createApp(App)

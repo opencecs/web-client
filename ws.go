@@ -627,7 +627,7 @@ func (c *WSClient) handleRequest(req WSRequest) {
 		c.handleProjectionToken(req)
 	// S5 代理管理 + 剪贴板 + 安卓控制
 	case "proxy:status", "proxy:set", "proxy:stop",
-		"clipboard:get", "clipboard:set",
+		"clipboard:get", "clipboard:set", "clipboard:paste",
 		"android:shake", "android:sms", "android:ping", "android:orientation":
 		c.handleProxyAction(req)
 	// 系统设置

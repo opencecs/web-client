@@ -608,11 +608,8 @@ async function doBatchUpload() {
     let containerOk = 0, containerFail = 0
     for (const file of files) {
       try {
-        // 从服务器下载文件，再推送到容器
-        const resp = await api.get('/file/download', { params: { name: file.name }, responseType: 'blob' })
-        const form = new FormData()
-        form.append('file', resp.data, file.name)
-        await api.post(`/container/${ct.name}/upload`, form, { timeout: 600000 })
+        // 服务端直推：文件从服务器本地直接推送到容器，不经浏览器中转（支持大文件）
+        await api.post(`/container/${ct.name}/push-upload`, { filename: file.name }, { timeout: 600000 })
         containerOk++
       } catch {
         containerFail++

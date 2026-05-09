@@ -12,6 +12,7 @@
         }
         if (hasNonAscii) {
             // 非 ASCII 文本：通知父窗口通过 HTTP API 处理，不走 KEYTEXT
+            console.log('[clipboard-patch] 拦截非ASCII文本, 通过postMessage发送:', text.substring(0, 20));
             if (window.parent !== window) {
                 window.parent.postMessage({ action: 'pasteToAndroid', text: text }, '*');
             }

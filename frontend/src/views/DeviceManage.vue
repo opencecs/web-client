@@ -616,35 +616,53 @@ async function connectSSH() {
     }
   })
 
-  // Ctrl+Shift+V 粘贴
-  sshTerm.attachCustomKeyEventHandler((e) => {
-    if (e.type === 'keydown' && e.ctrlKey && e.shiftKey && e.key === 'V') {
+  // 剪贴板辅助函数
+  function sshClipboardCopy(text) {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => sshFallbackCopy(text))
+    } else {
+      sshFallbackCopy(text)
+    }
+  }
+  function sshFallbackCopy(text) {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.left = '-9999px'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+  }
+
+  // 原生 paste 事件
+  sshTermRef.value?.addEventListener('paste', (e) => {
+    const text = e.clipboardData?.getData('text')
+    if (text && sshSocket?.readyState === WebSocket.OPEN) {
+      sshSocket.send(JSON.stringify({ type: 'stdin', data: text }))
+    }
+  })
+
+  // 右键：有选中→复制；无选中→尝试读取剪贴板粘贴，失败则不拦截让浏览器菜单处理
+  sshTermRef.value?.addEventListener('contextmenu', (e) => {
+    const selection = sshTerm.getSelection()
+    if (selection) {
+      e.preventDefault()
+      sshClipboardCopy(selection)
+      return
+    }
+    // 无选中：尝试Clipboard API直接粘贴（HTTPS环境）
+    if (navigator.clipboard?.readText) {
+      e.preventDefault()
       navigator.clipboard.readText().then(text => {
         if (text && sshSocket?.readyState === WebSocket.OPEN) {
           sshSocket.send(JSON.stringify({ type: 'stdin', data: text }))
         }
-      }).catch(() => {})
-      return false
+      }).catch(() => {
+        // HTTP环境无权限，释放右键让浏览器菜单弹出
+      })
     }
-    // Ctrl+Shift+C 复制选中内容
-    if (e.type === 'keydown' && e.ctrlKey && e.shiftKey && e.key === 'C') {
-      const sel = sshTerm.getSelection()
-      if (sel) {
-        navigator.clipboard.writeText(sel).catch(() => {})
-      }
-      return false
-    }
-    return true
-  })
-
-  // 右键粘贴
-  sshTermRef.value?.addEventListener('contextmenu', (e) => {
-    e.preventDefault()
-    navigator.clipboard.readText().then(text => {
-      if (text && sshSocket?.readyState === WebSocket.OPEN) {
-        sshSocket.send(JSON.stringify({ type: 'stdin', data: text }))
-      }
-    }).catch(() => {})
+    // HTTP环境不preventDefault，浏览器右键菜单含"粘贴"
   })
 
   window._sshResize = () => {

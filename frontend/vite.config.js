@@ -31,12 +31,12 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
+      external: ['vant', 'vant/lib/index.css', /^vant\//],
       output: {
         // Vendor 分包：拆分大型第三方库
         manualChunks: {
           'vue-vendor': ['vue', 'vue-router', 'pinia'],
           'element-plus': ['element-plus'],
-          'vant': ['vant'],
           'xterm': ['xterm', '@xterm/addon-fit'],
         }
       }

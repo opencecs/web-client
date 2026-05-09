@@ -70,7 +70,18 @@ function initTerminal() {
     document.body.removeChild(ta)
   }
 
-  // 原生 paste 事件（最可靠）
+  // 粘贴辅助函数（HTTPS环境用Clipboard API）
+  function clipboardPaste() {
+    if (navigator.clipboard?.readText) {
+      navigator.clipboard.readText().then(text => {
+        if (text && socket?.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: 'stdin', data: text }))
+        }
+      }).catch(() => {})
+    }
+  }
+
+  // 原生 paste 事件
   termRef.value.addEventListener('paste', (e) => {
     const text = e.clipboardData?.getData('text')
     if (text && socket?.readyState === WebSocket.OPEN) {
@@ -78,43 +89,26 @@ function initTerminal() {
     }
   })
 
-  // 右键粘贴
+  // 右键：有选中→复制；无选中→尝试读取剪贴板粘贴，失败则不拦截让浏览器菜单处理
   termRef.value.addEventListener('contextmenu', (e) => {
-    e.preventDefault()
-    const text = e.clipboardData?.getData('text') || ''
-    if (!text) {
-      // 尝试从隐藏 textarea 获取
-      const ta = document.createElement('textarea')
-      ta.style.position = 'fixed'
-      ta.style.left = '-9999px'
-      document.body.appendChild(ta)
-      ta.focus()
-      document.execCommand('paste')
-      const pasted = ta.value
-      document.body.removeChild(ta)
-      if (pasted && socket?.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'stdin', data: pasted }))
-      }
+    const selection = term.getSelection()
+    if (selection) {
+      e.preventDefault()
+      clipboardCopy(selection)
+      return
     }
-  })
-
-  // Ctrl+C 复制（有选中内容时）/ Ctrl+V 粘贴
-  term.attachCustomKeyEventHandler((e) => {
-    if (e.type !== 'keydown') return false
-    // Ctrl+C：有选中内容时复制，否则让中断信号正常通过
-    if (e.ctrlKey && !e.shiftKey && e.code === 'KeyC') {
-      const selection = term.getSelection()
-      if (selection) {
-        clipboardCopy(selection)
-        return true // 阻止中断信号
-      }
-      return false // 无选中内容，放行 Ctrl+C 中断
+    // 无选中：尝试Clipboard API直接粘贴（HTTPS环境）
+    if (navigator.clipboard?.readText) {
+      e.preventDefault()
+      navigator.clipboard.readText().then(text => {
+        if (text && socket?.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: 'stdin', data: text }))
+        }
+      }).catch(() => {
+        // HTTP环境无权限，释放右键让浏览器菜单弹出，用户点"粘贴"即可
+      })
     }
-    // Ctrl+V：粘贴由原生 paste 事件处理，这里只阻止 xterm 默认行为
-    if (e.ctrlKey && !e.shiftKey && e.code === 'KeyV') {
-      return true
-    }
-    return false
+    // HTTP环境不preventDefault，浏览器右键菜单含"粘贴"
   })
 
   // WebSocket 连接到后端 SDK 代理

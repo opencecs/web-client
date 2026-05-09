@@ -114,6 +114,7 @@ func main() {
 		// 容器文件上传代理（所有用户可用，内部检查坑位权限）
 		uploadProxy := &ContainerUploadProxy{auth: authService, hub: wsHub}
 		r.Post("/api/container/{name}/upload", uploadProxy.HandleUpload)
+		r.Post("/api/container/{name}/push-upload", uploadProxy.HandlePushUpload)
 		r.Post("/api/container/{name}/cert", uploadProxy.HandleCert)
 		r.Post("/api/container/{name}/keybox", uploadProxy.HandleKeybox)
 

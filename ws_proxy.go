@@ -19,6 +19,7 @@ func (c *WSClient) containerAPIPort(containerName string) int {
 
 // handleProxyAction 处理容器 S5 代理操作
 func (c *WSClient) handleProxyAction(req WSRequest) {
+	log.Printf("[DEBUG] handleProxyAction: action=%s id=%s", req.Action, req.ID)
 	name := getStr(req.Data, "name")
 	if name == "" {
 		c.sendResponse(req.ID, false, "缺少容器名称", nil)
@@ -84,11 +85,9 @@ func (c *WSClient) handleProxyAction(req WSRequest) {
 			c.sendResponse(req.ID, false, "文本为空", nil)
 			return
 		}
-		// 1) 通过容器 HTTP API 设置剪贴板（POST JSON UTF-8）
-		c.proxyRequest(req, port, "POST", "/clipboard", map[string]interface{}{
-			"cmd":  "2",
-			"text": text,
-		})
+		// 1) 通过容器 HTTP API 设置剪贴板（GET + URL 参数，容器端只支持此方式）
+		clipboardURL := fmt.Sprintf("/clipboard?cmd=2&text=%s", url.QueryEscape(text))
+		c.proxyRequest(req, port, "GET", clipboardURL, nil)
 		// 2) 延迟后通过 exec 触发粘贴
 		//    方案 A: input keyevent 279 (KEYCODE_PASTE，Android 7+)
 		//    方案 B: am broadcast (备用，部分容器支持)

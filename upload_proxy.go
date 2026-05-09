@@ -7,6 +7,8 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -46,6 +48,98 @@ func (p *ContainerUploadProxy) HandleUpload(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	p.forwardMultipart(w, r, fmt.Sprintf("http://127.0.0.1:%d/upload", port), containerName)
+}
+
+// HandlePushUpload 服务端直推：从本地 upload 目录读文件推送到容器，不经浏览器中转
+func (p *ContainerUploadProxy) HandlePushUpload(w http.ResponseWriter, r *http.Request) {
+	containerName := chi.URLParam(r, "name")
+	if msg := p.checkAccess(r, containerName); msg != "" {
+		jsonError(w, msg, 403)
+		return
+	}
+	port := containerAPIPort(p.hub, containerName)
+	if port == 0 {
+		jsonError(w, "找不到容器", 404)
+		return
+	}
+
+	var req struct {
+		Filename string `json:"filename"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Filename == "" {
+		jsonError(w, "缺少文件名", 400)
+		return
+	}
+
+	// 安全校验
+	if strings.Contains(req.Filename, "..") || strings.Contains(req.Filename, "/") || strings.Contains(req.Filename, "\\") {
+		jsonError(w, "文件名不合法", 400)
+		return
+	}
+
+	dir := uploadDir()
+	filePath := filepath.Join(dir, req.Filename)
+	absPath, _ := filepath.Abs(filePath)
+	absDir, _ := filepath.Abs(dir)
+	if !strings.HasPrefix(absPath, absDir) {
+		jsonError(w, "非法路径", 400)
+		return
+	}
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			jsonError(w, "文件不存在: "+req.Filename, 404)
+		} else {
+			jsonError(w, "打开文件失败", 500)
+		}
+		return
+	}
+	defer f.Close()
+
+	fi, _ := f.Stat()
+	log.Printf("[PushUpload] 容器 %s: 直推 %s (%d bytes) → :%d", containerName, req.Filename, fi.Size(), port)
+
+	// 构建 multipart 请求流式推送到容器
+	pr, pw := io.Pipe()
+	writer := multipart.NewWriter(pw)
+	go func() {
+		defer pw.Close()
+		dst, err := writer.CreateFormFile("file", req.Filename)
+		if err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		if _, err := io.Copy(dst, f); err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		writer.Close()
+	}()
+
+	client := &http.Client{Timeout: 10 * time.Minute}
+	httpReq, _ := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:%d/upload", port), pr)
+	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		jsonError(w, "容器未响应: "+err.Error(), 502)
+		return
+	}
+	defer resp.Body.Close()
+
+	for k, vv := range resp.Header {
+		for _, v := range vv {
+			w.Header().Add(k, v)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+
+	// APK 自动安装
+	if strings.HasSuffix(strings.ToLower(req.Filename), ".apk") && resp.StatusCode < 400 {
+		go p.autoInstallAPK(containerName, req.Filename)
+	}
 }
 
 // HandleCert 处理证书上传转发到容器 POST /uploadcert

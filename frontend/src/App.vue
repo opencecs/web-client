@@ -117,10 +117,11 @@ onBeforeUnmount(() => {
 <style>
 @import './theme.css';
 
-html, body {
+html, body, #app {
   margin: 0;
   padding: 0;
   height: 100%;
+  overflow: hidden;
   background: var(--bg-default);
   color: var(--text-primary);
   font-family: var(--font-family);
@@ -132,11 +133,13 @@ html.dark {
 }
 .app-container {
   height: 100%;
+  overflow: hidden;
 }
 .main-wrapper {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   transition: margin-left var(--transition-normal);
 }
 .app-header {
@@ -159,14 +162,14 @@ html.dark {
   padding: 0;
   background: var(--bg-default);
   overflow-y: auto;
-  position: relative;
+  min-height: 0;
 }
 .app-main > * {
-  animation: fadeInUp 0.25s ease both;
+  animation: fadeIn 0.25s ease both;
 }
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .ws-status {
   display: flex;

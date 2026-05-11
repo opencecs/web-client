@@ -31,7 +31,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      external: ['vant', 'vant/lib/index.css', /^vant\//],
+      external: [],
       output: {
         // Vendor 分包：拆分大型第三方库
         manualChunks: {

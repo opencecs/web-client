@@ -37,7 +37,7 @@
     </el-table>
 
     <!-- 新增/编辑对话框 -->
-    <el-dialog v-model="showCreate" :title="editingUser ? '编辑用户' : '新增用户'" width="450px" append-to=".app-main" style="--el-dialog-border-radius: 8px">
+    <el-dialog v-model="showCreate" :title="editingUser ? '编辑用户' : '新增用户'" width="450px">
       <el-form :model="form" label-width="80px">
         <el-form-item label="用户名">
           <el-input v-model="form.username" :disabled="!!editingUser" />
@@ -77,7 +77,7 @@
     </el-dialog>
 
     <!-- 权限配置对话框 -->
-    <el-dialog v-model="permVisible" :title="`权限配置 — ${permUser?.username}`" width="600px" append-to=".app-main">
+    <el-dialog v-model="permVisible" :title="`权限配置 — ${permUser?.username}`" width="600px">
       <div style="margin-bottom: 16px">
         <div style="display: flex; align-items: center; margin-bottom: 8px">
           <span style="color: #f0f0f0; font-weight: bold; margin-right: 12px">坑位权限</span>

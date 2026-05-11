@@ -3,12 +3,15 @@
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-md)">
       <div style="display: flex; align-items: center; gap: 12px">
         <h3 style="margin: 0; color: var(--text-primary); font-size: 18px; font-weight: 600">备份管理</h3>
-        <span style="color: var(--text-secondary); font-size: 13px">共 {{ containerBackups.length }} 个备份</span>
+        <span style="color: var(--text-secondary); font-size: 13px">共 {{ filteredContainers.length }} 个备份</span>
         <el-button size="small" type="danger" :disabled="!selectedRows.length" @click="batchDeleteBackups">
           批量删除{{ selectedRows.length ? ` (${selectedRows.length})` : '' }}
         </el-button>
       </div>
-      <el-button size="small" :loading="loading" @click="loadContainerBackups">刷新</el-button>
+      <div style="display: flex; align-items: center; gap: 8px">
+        <el-input v-model="searchKeyword" placeholder="搜索云机名称" clearable size="small" style="width: 180px" />
+        <el-button size="small" :loading="loading" @click="loadContainerBackups">刷新</el-button>
+      </div>
     </div>
 
     <div v-for="slot in sortedSlots" :key="slot" style="margin-bottom: 16px">
@@ -98,6 +101,17 @@ const loading = ref(false)
 const containerBackups = ref([])
 const mirrorCache = ref([])
 const actionLoading = reactive({})
+const searchKeyword = ref('')
+
+// 按名称搜索过滤容器
+const filteredContainers = computed(() => {
+  const kw = searchKeyword.value.trim().toLowerCase()
+  if (!kw) return device.containers
+  return device.containers.filter(c => {
+    const name = device.displayName(c.name).toLowerCase()
+    return name.includes(kw) || c.name.toLowerCase().includes(kw)
+  })
+})
 
 // 选择状态：slotNum -> 容器数组
 const slotSels = reactive({})
@@ -112,8 +126,7 @@ const selectedRows = computed(() => {
 // 缓存每坑位容器引用，避免 filter 产生新数组导致 table 重渲染
 const slotContainerCache = reactive({})
 function getSlotContainers(slot) {
-  // 与 device.containers 同引用
-  const current = device.containers.filter(c => (c.indexNum || 0) === slot)
+  const current = filteredContainers.value.filter(c => (c.indexNum || 0) === slot)
   const cached = slotContainerCache[slot]
   if (cached && cached.length === current.length && cached.every((c, i) => c.name === current[i].name)) {
     return cached
@@ -140,7 +153,7 @@ function matchMirrorName(url) {
 
 const sortedSlots = computed(() => {
   const slots = new Set()
-  for (const c of device.containers) {
+  for (const c of filteredContainers.value) {
     slots.add(c.indexNum || 0)
   }
   return [...slots].sort((a, b) => a - b)

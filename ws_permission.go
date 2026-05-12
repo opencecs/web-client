@@ -101,8 +101,8 @@ func (c *WSClient) hasPermission(action string) bool {
 
 	// S5 代理 + 剪贴板 + 安卓控制（坑位权限在 handleProxyAction 中检查）
 	case "proxy:status", "proxy:set", "proxy:stop",
-		"clipboard:get", "clipboard:set",
-		"android:shake", "android:sms", "android:ping":
+		"clipboard:get", "clipboard:set", "clipboard:paste",
+		"android:shake", "android:sms", "android:ping", "android:orientation":
 		return p.ContainerStart
 
 	default:

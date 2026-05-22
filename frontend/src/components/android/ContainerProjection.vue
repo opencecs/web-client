@@ -13,6 +13,8 @@
       <div class="projection-body">
         <iframe v-if="playerUrl" ref="iframeRef" :src="playerUrl" class="projection-iframe"
           allowfullscreen allow="autoplay *; fullscreen; microphone; camera; display-capture" disablepictureinpicture />
+        <!-- 拖拽遮罩：阻止 iframe 捕获鼠标事件 -->
+        <div v-if="dragging" class="iframe-drag-shield"></div>
       </div>
       <!-- 右侧工具栏 -->
       <div class="projection-sidebar" @mousedown.stop>
@@ -36,8 +38,8 @@
         </label>
       </div>
     </div>
-    <!-- 安卓导航按钮 -->
-    <div class="projection-footer">
+    <!-- 安卓导航按钮（底部也可拖动，防止标题栏被遮挡后无法拖回窗口） -->
+    <div class="projection-footer" @mousedown.stop="onDragStart">
       <button class="android-btn" title="最近任务" @mousedown.stop @click="sendCmd('goClean')">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.6"/></svg>
       </button>
@@ -91,7 +93,7 @@ const pos = reactive({
   w: 380,
   h: 700
 })
-let dragging = false
+const dragging = ref(false)
 let startX = 0, startY = 0, startPosX = 0, startPosY = 0
 
 const floatStyle = computed(() => ({
@@ -110,20 +112,23 @@ function sendCmd(action) {
 
 // 拖动
 function onDragStart(e) {
-  if (e.target.closest('.projection-btn') || e.target.closest('.projection-footer') || e.target.closest('.projection-sidebar') || e.target.closest('.sms-overlay')) return
-  dragging = true
+  if (e.target.closest('.projection-btn') || e.target.closest('.projection-sidebar') || e.target.closest('.sms-overlay')) return
+  dragging.value = true
   startX = e.clientX; startY = e.clientY
   startPosX = pos.x; startPosY = pos.y
   document.addEventListener('mousemove', onDragMove)
   document.addEventListener('mouseup', onDragEnd)
 }
 function onDragMove(e) {
-  if (!dragging) return
+  if (!dragging.value) return
   pos.x = startPosX + (e.clientX - startX)
   pos.y = startPosY + (e.clientY - startY)
+  // 限制：标题栏始终完全可见，防止被浏览器窗口标题栏遮挡后无法拖回
+  pos.y = Math.max(0, pos.y)
+  pos.x = Math.max(-pos.w + 60, pos.x)
 }
 function onDragEnd() {
-  dragging = false
+  dragging.value = false
   document.removeEventListener('mousemove', onDragMove)
   document.removeEventListener('mouseup', onDragEnd)
 }
@@ -483,6 +488,12 @@ onBeforeUnmount(() => {
   transform: translateZ(0);
   contain: strict;
 }
+.iframe-drag-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  cursor: move;
+}
 .projection-sidebar {
   width: 42px;
   background: #1a1a1a;
@@ -540,6 +551,7 @@ onBeforeUnmount(() => {
   background: #1e1e1e;
   border-top: 1px solid #333;
   flex-shrink: 0;
+  cursor: move;
 }
 .sms-overlay {
   position: absolute;

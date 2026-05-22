@@ -165,7 +165,6 @@
           <span class="perm-section-desc">控制用户可见的导航菜单</span>
         </div>
         <div class="perm-grid">
-          <el-checkbox v-model="permForm.menu_dashboard" label="设备概览" />
           <el-checkbox v-model="permForm.menu_device" label="设备管理" />
           <el-checkbox v-model="permForm.menu_android" label="安卓管理" />
           <el-checkbox v-model="permForm.menu_backup" label="备份管理" />

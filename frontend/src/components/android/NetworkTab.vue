@@ -20,7 +20,7 @@
         <div style="line-height: 1.8; color: #b0b0b0">
           虚拟网卡是为容器分配的独立网络通道，每张网卡拥有独立的 IP 地址段（CIDR），容器通过虚拟网卡实现网络隔离和通信。<br/>
           <b>使用场景：</b>当需要让不同容器在不同网段运行时，可以创建多张虚拟网卡，然后在创建容器时选择对应的网卡。<br/>
-          <b>CIDR 格式：</b>例如 <code>172.18.0.0/16</code>，表示该网卡使用 172.18.x.x 网段，可容纳约 65000 个 IP 地址。
+          <b>CIDR 格式：</b>例如 <code>172.18.0.1/16</code>，表示该网卡使用 172.18.x.x 网段，可容纳约 65000 个 IP 地址。
         </div>
       </el-alert>
 
@@ -53,10 +53,10 @@
           <div style="color: #b0b0b0; font-size: 11px; margin-top: 2px">仅支持英文、数字和短横线，如：my-bridge</div>
         </el-form-item>
         <el-form-item label="IP 地址段">
-          <el-input v-model="bridgeForm.cidr" placeholder="如 192.168.0.0（自动补/24）" />
+          <el-input v-model="bridgeForm.cidr" placeholder="如 192.168.0.1（自动补/24）" />
           <div style="color: #b0b0b0; font-size: 11px; margin-top: 2px">
             CIDR 格式，不同网卡需使用不同网段，避免 IP 冲突。<br/>
-            常用网段：172.18.0.0/16、172.19.0.0/16、10.10.0.0/16
+            常用网段：172.18.0.1/16、172.19.0.1/16、10.10.0.1/16
           </div>
         </el-form-item>
       </el-form>

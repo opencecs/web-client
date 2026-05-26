@@ -577,7 +577,9 @@ function openBatchUpload() {
   const slots = selectedSlots.value
   const containers = []
   for (const slot of slots) {
-    const ct = device.containers.find(c => c.indexNum === slot.num)
+    // 优先取运行中的容器，其次取有别名的，最后取任意一个
+    const cts = device.containers.filter(c => c.indexNum === slot.num)
+    const ct = cts.find(c => c.status === 'running') || cts.find(c => device.containerAliases[c.name]) || cts[0]
     if (ct) containers.push(ct)
   }
   if (!containers.length) {

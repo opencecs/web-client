@@ -230,10 +230,13 @@ async function openNewWindow() {
 }
 
 function closeProjection() {
-  // 通知 iframe 内 SDK 清理
+  // 通知 iframe 内 SDK 清理 WebRTC/WebSocket 连接
   if (iframeRef.value?.contentWindow) {
+    try { iframeRef.value.contentWindow.postMessage({ action: 'cleanup' }, '*') } catch {}
     try { iframeRef.value.contentWindow.globalCleanup?.() } catch {}
   }
+  // 清空 iframe src 强制断开连接，避免关闭后 WebRTC 流未释放导致重新投屏黑屏
+  playerUrl.value = ''
   emit('close', props.container?.name)
   emit('update:modelValue', false)
 }
@@ -420,9 +423,12 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onClipboardKey)
   window.removeEventListener('message', onIframePaste)
   stopLatencyPoll()
+  // 清理 iframe 内连接
   if (iframeRef.value?.contentWindow) {
+    try { iframeRef.value.contentWindow.postMessage({ action: 'cleanup' }, '*') } catch {}
     try { iframeRef.value.contentWindow.globalCleanup?.() } catch {}
   }
+  playerUrl.value = ''
 })
 </script>
 

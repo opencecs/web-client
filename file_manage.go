@@ -40,11 +40,11 @@ func uploadDir() string {
 
 // HandleUpload 上传文件到 mmc 目录（流式写入，支持大文件）
 func (h *FileManageHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
-	// 权限检查：admin 或 backup_manage 权限
+	// 权限检查：admin 或 menu_file 权限
 	claims := r.Context().Value(userContextKey).(*Claims)
 	if claims.Role != "admin" {
 		perms := h.auth.GetUserPermissions(claims.UserID)
-		if perms == nil || !perms.BackupManage {
+		if perms == nil || !perms.MenuFile {
 			jsonError(w, "无权限", 403)
 			return
 		}
@@ -123,7 +123,7 @@ func (h *FileManageHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 	claims := r.Context().Value(userContextKey).(*Claims)
 	if claims.Role != "admin" {
 		perms := h.auth.GetUserPermissions(claims.UserID)
-		if perms == nil || !perms.BackupManage {
+		if perms == nil || !perms.MenuFile {
 			jsonError(w, "无权限", 403)
 			return
 		}
@@ -172,7 +172,7 @@ func (h *FileManageHandler) HandleDelete(w http.ResponseWriter, r *http.Request)
 	claims := r.Context().Value(userContextKey).(*Claims)
 	if claims.Role != "admin" {
 		perms := h.auth.GetUserPermissions(claims.UserID)
-		if perms == nil || !perms.BackupManage {
+		if perms == nil || !perms.MenuFile {
 			jsonError(w, "无权限", 403)
 			return
 		}
@@ -222,7 +222,7 @@ func (h *FileManageHandler) HandleDownload(w http.ResponseWriter, r *http.Reques
 	claims := r.Context().Value(userContextKey).(*Claims)
 	if claims.Role != "admin" {
 		perms := h.auth.GetUserPermissions(claims.UserID)
-		if perms == nil || !perms.BackupManage {
+		if perms == nil || !perms.MenuFile {
 			jsonError(w, "无权限", 403)
 			return
 		}

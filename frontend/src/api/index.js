@@ -22,11 +22,13 @@ api.interceptors.response.use(
     if (error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/logout')) {
       return Promise.reject(error)
     }
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    if (error.response?.status === 401) {
+      // 401 = 未登录/token过期，需要重新登录
       const auth = useAuthStore()
       auth.logout()
       router.push('/login')
     }
+    // 403 = 无权限，不退出登录，由具体页面自行处理提示
     return Promise.reject(error)
   }
 )

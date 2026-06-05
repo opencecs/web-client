@@ -14,7 +14,7 @@
       <el-button v-if="auth.can('container_start')" size="small" :disabled="!singleRunning" @click="$emit('s5proxy', singleContainer)">S5 代理</el-button>
       <el-button v-if="auth.can('backup_manage')" size="small" :disabled="!singleContainer" @click="$emit('backup-switch', liveSlots[0])">备份切换</el-button>
       <el-button v-if="auth.can('switch_model')" size="small" :disabled="!singleContainer" @click="$emit('switch-model', singleContainer)">切换机型</el-button>
-      <el-button v-if="auth.can('backup_manage')" size="small" :disabled="!hasContainer" @click="$emit('batch-upload')">批量上传</el-button>
+      <el-button v-if="auth.can('menu_file')" size="small" :disabled="!hasContainer" @click="$emit('batch-upload')">批量上传</el-button>
       <el-button v-if="auth.can('container_delete')" type="danger" size="small" :disabled="!hasContainer" @click="confirmAction('delete')">删除</el-button>
     </el-space>
     <span class="selection-hint" v-if="selected.length > 0">

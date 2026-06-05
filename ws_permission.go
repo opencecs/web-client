@@ -71,9 +71,11 @@ func (c *WSClient) hasPermission(action string) bool {
 		"sdk:getGlobalDomainFilter", "sdk:setGlobalDomainFilter", "sdk:deleteGlobalDomainFilter":
 		return p.VpcManage
 
-	// 设备管理（仅 admin）
-	case "device:version", "device:reboot", "device:upgrade", "device:cleanDisk":
-		return false
+	// 设备管理
+	case "device:version", "device:upgrade":
+		return p.MenuDevice // 有设备管理菜单权限即可查看版本和升级 SDK
+	case "device:reboot", "device:cleanDisk":
+		return false // 重启设备、清空磁盘仅 admin
 
 	// 面板更新（仅 admin）
 	case "panel:version":

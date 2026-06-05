@@ -27,8 +27,16 @@ api.interceptors.response.use(
       const auth = useAuthStore()
       auth.logout()
       router.push('/login')
+    } else if (error.response?.status === 403) {
+      const errMsg = error.response?.data?.error || ''
+      // 账户被禁用/过期需要重新登录
+      if (errMsg === 'account disabled' || errMsg === 'account expired') {
+        const auth = useAuthStore()
+        auth.logout()
+        router.push('/login')
+      }
+      // 其他 403（如无权限）不退出登录，由具体页面自行处理提示
     }
-    // 403 = 无权限，不退出登录，由具体页面自行处理提示
     return Promise.reject(error)
   }
 )

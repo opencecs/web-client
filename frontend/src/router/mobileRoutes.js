@@ -70,13 +70,13 @@ export const mobileRoutes = [
     path: '/m/backup',
     name: 'MobileBackup',
     component: () => import('../views/mobile/MobileBackup.vue'),
-    meta: { mobile: true, perm: 'backup_manage' }
+    meta: { mobile: true, perm: 'menu_backup' }
   },
   {
     path: '/m/files',
     name: 'MobileFile',
     component: () => import('../views/mobile/MobileFile.vue'),
-    meta: { mobile: true, perm: 'backup_manage' }
+    meta: { mobile: true, perm: 'menu_file' }
   },
   {
     path: '/m/device',

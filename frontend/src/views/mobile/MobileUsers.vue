@@ -113,6 +113,17 @@
           </div>
         </div>
 
+        <!-- 菜单权限 -->
+        <div class="form-section" style="display: flex; align-items: center; gap: 8px">
+          <span>菜单权限</span>
+        </div>
+        <div class="perm-list">
+          <div v-for="p in menuPermList" :key="p.key" class="perm-item">
+            <span>{{ p.label }}</span>
+            <van-switch v-model="permForm[p.key]" size="20px" />
+          </div>
+        </div>
+
         <div class="popup-actions">
           <van-button plain block @click="showPerms = false">取消</van-button>
           <van-button type="primary" block :loading="savingPerms" @click="savePerms">保存权限</van-button>
@@ -156,11 +167,17 @@ const permForm = reactive({
   container_create: false, alias_manage: false, backup_manage: false,
   image_view: false, projection: false, terminal: false,
   network_bridge: false, vpc_manage: false,
+  // 菜单权限
+  menu_dashboard: false, menu_device: false, menu_android: false,
+  menu_backup: false, menu_file: false, menu_users: false,
+  switch_model: false,
 })
 const permKeys = [
   'container_start', 'container_restart', 'container_reset', 'container_delete',
   'container_rename', 'container_copy', 'container_create', 'alias_manage',
-  'backup_manage', 'image_view', 'projection', 'terminal', 'network_bridge', 'vpc_manage'
+  'backup_manage', 'image_view', 'projection', 'terminal', 'network_bridge', 'vpc_manage',
+  'menu_dashboard', 'menu_device', 'menu_android', 'menu_backup', 'menu_file', 'menu_users',
+  'switch_model'
 ]
 const permList = [
   { key: 'container_start', label: '启动/停止' },
@@ -177,6 +194,15 @@ const permList = [
   { key: 'vpc_manage', label: 'VPC 管理' },
   { key: 'alias_manage', label: '别名管理' },
   { key: 'backup_manage', label: '备份管理' },
+  { key: 'switch_model', label: '切换机型' },
+]
+const menuPermList = [
+  { key: 'menu_dashboard', label: '设备概览' },
+  { key: 'menu_device', label: '设备管理' },
+  { key: 'menu_android', label: '安卓管理' },
+  { key: 'menu_backup', label: '备份管理' },
+  { key: 'menu_file', label: '文件管理' },
+  { key: 'menu_users', label: '用户管理' },
 ]
 
 async function loadUsers() {

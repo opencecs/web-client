@@ -118,7 +118,13 @@
     <!-- 批量分配弹窗 -->
     <el-dialog v-model="showBatchAssign" title="批量分配 VPC" width="800px"
       style="--el-dialog-padding-primary: 16px">
-      <div style="color: #b0b0b0; margin-bottom: 6px">选择容器</div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px">
+        <span style="color: #b0b0b0">选择容器</span>
+        <el-checkbox :model-value="batchAssignNames.length === availableContainers.length && availableContainers.length > 0"
+          :indeterminate="batchAssignNames.length > 0 && batchAssignNames.length < availableContainers.length"
+          @change="val => batchAssignNames = val ? availableContainers.map(c => c.name) : []"
+          style="color: #b0b0b0">全选</el-checkbox>
+      </div>
       <div style="max-height: 160px; overflow-y: auto; border: 1px solid #333; border-radius: 4px; padding: 8px; margin-bottom: 12px">
         <el-checkbox-group v-model="batchAssignNames">
           <el-checkbox v-for="c in availableContainers" :key="c.name" :label="c.name" :value="c.name"

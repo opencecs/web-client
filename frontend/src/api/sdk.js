@@ -19,9 +19,9 @@ const sdk = {
   getTaskStatus(taskId) {
     return api.get('/sdk/android/task-status', { params: { taskId } })
   },
-  // 导出容器
+  // 导出容器（返回 zip 二进制流）
   exportContainer(name) {
-    return api.post('/sdk/android/export', { name })
+    return api.post('/sdk/android/export', { name }, { responseType: 'blob', timeout: 600000 })
   },
 
   // ========== 镜像管理 ==========

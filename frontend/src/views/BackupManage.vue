@@ -35,7 +35,7 @@
             <el-tag v-else type="info" size="small">停止</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="280" align="center">
+        <el-table-column label="操作" min-width="320" align="center">
           <template #default="{ row }">
             <div style="display: flex; gap: 4px; flex-wrap: wrap; justify-content: center">
               <el-button size="small" type="success" :disabled="row.status === 'running'"
@@ -47,6 +47,8 @@
               <el-button size="small" @click="openRename(row)">修改名称</el-button>
               <el-button size="small" type="primary" :disabled="row.status !== 'running'"
                 @click="openProjection(row.name)">投屏</el-button>
+              <el-button size="small" :loading="actionLoading[row.name] === 'export'"
+                @click="doExport(row.name)">导入本地</el-button>
               <el-popconfirm title="确认删除该容器？数据将不可恢复" @confirm="deleteContainer(row.name)">
                 <template #reference>
                   <el-button size="small" type="danger">删除</el-button>
@@ -94,6 +96,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useDeviceStore } from '../stores/device.js'
 import { useAuthStore } from '../stores/auth.js'
 import ContainerProjection from '../components/android/ContainerProjection.vue'
+import sdk from '../api/sdk.js'
 
 const device = useDeviceStore()
 const auth = useAuthStore()
@@ -245,6 +248,27 @@ function openProjection(name) {
 function removeProjection(name) {
   const idx = projections.findIndex(p => p.name === name)
   if (idx !== -1) projections.splice(idx, 1)
+}
+
+// ===== 导入本地 =====
+async function doExport(name) {
+  actionLoading[name] = 'export'
+  try {
+    const resp = await sdk.exportContainer(name)
+    // SDK 返回流式 zip 数据，触发浏览器下载
+    const blob = new Blob([resp.data], { type: 'application/zip' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${device.displayName(name)}.zip`
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch (e) {
+    ElMessage.error(e.message || '导出失败')
+  } finally {
+    delete actionLoading[name]
+  }
 }
 
 // ===== 备份操作 =====

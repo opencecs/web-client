@@ -96,7 +96,6 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useDeviceStore } from '../stores/device.js'
 import { useAuthStore } from '../stores/auth.js'
 import ContainerProjection from '../components/android/ContainerProjection.vue'
-import sdk from '../api/sdk.js'
 
 const device = useDeviceStore()
 const auth = useAuthStore()
@@ -254,13 +253,23 @@ function removeProjection(name) {
 async function doExport(name) {
   actionLoading[name] = 'export'
   try {
-    const resp = await sdk.exportContainer(name)
-    // SDK 返回流式 zip 数据，触发浏览器下载
-    const blob = new Blob([resp.data], { type: 'application/zip' })
+    const token = localStorage.getItem('token')
+    const resp = await fetch(`/api/container/export?name=${encodeURIComponent(name)}&token=${token}`)
+    if (!resp.ok) {
+      const text = await resp.text()
+      throw new Error(text || `导出失败 (HTTP ${resp.status})`)
+    }
+    const blob = await resp.blob()
+    // 从 Content-Disposition 提取文件名
+    const disposition = resp.headers.get('Content-Disposition') || ''
+    let fileName = `${device.displayName(name)}.tar.gz`
+    const match = disposition.match(/filename="?([^";\n]+)"?/)
+    if (match) fileName = decodeURIComponent(match[1])
+    // 触发浏览器下载
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${device.displayName(name)}.zip`
+    a.download = fileName
     a.click()
     URL.revokeObjectURL(url)
     ElMessage.success('导出成功')

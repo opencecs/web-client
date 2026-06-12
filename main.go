@@ -118,6 +118,10 @@ func main() {
 		r.Post("/api/container/{name}/cert", uploadProxy.HandleCert)
 		r.Post("/api/container/{name}/keybox", uploadProxy.HandleKeybox)
 
+			// 容器导出下载
+			exportHandler := &ContainerExportHandler{auth: authService, hub: wsHub}
+			r.Get("/api/container/export", exportHandler.HandleExport)
+
 			// 文件管理（上传到宿主机 mmc/upload 目录）
 			fileManage := &FileManageHandler{auth: authService}
 			r.Post("/api/file/upload", fileManage.HandleUpload)

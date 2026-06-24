@@ -7,7 +7,6 @@ async function aesDecrypt(sessionKeyBase64, encryptedBase64) {
   const keyBytes = Uint8Array.from(atob(sessionKeyBase64), c => c.charCodeAt(0))
   const key = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['decrypt'])
   const data = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0))
-  // 前 12 字节是 nonce，后面是密文
   const nonce = data.slice(0, 12)
   const ciphertext = data.slice(12)
   const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, ciphertext)
@@ -19,19 +18,18 @@ export const useDeviceStore = defineStore('device', () => {
   const online = ref(false)
   const containers = ref([])
   const containerAliases = ref({})
-  const screenshots = ref({}) // { "坑位号": "data:image/jpeg;base64,..." }
+  const screenshots = ref({})
   let ws = null
   let _reqId = 0
-  let _kicked = false // 被踢标志，阻止自动重连
-  let _reconnectDelay = 1000 // 重连延迟，指数退避
+  let _kicked = false
+  let _reconnectDelay = 1000
 
-  // 暴露 ws 引用给需要监听原始事件的组件
+  // 设备鉴权 401 触发回调
+  const _auth401Listeners = new Set()
+
   const _ws = { get value() { return ws } }
 
-  // 等待响应的回调 map: id -> { resolve, reject, timer }
   const pendingRequests = new Map()
-
-  // 外部事件监听器（跨重连保持）
   const eventListeners = new Set()
 
   function connect() {
@@ -48,13 +46,9 @@ export const useDeviceStore = defineStore('device', () => {
       try {
         const msg = JSON.parse(event.data)
 
-        // 处理加密消息
         if (msg.type === 'encrypted' && msg.data && auth.sessionKey) {
           aesDecrypt(auth.sessionKey, msg.data).then(plaintext => {
-            try {
-              const decrypted = JSON.parse(plaintext)
-              handleMessage(decrypted)
-            } catch {}
+            try { handleMessage(JSON.parse(plaintext)) } catch {}
           }).catch(() => {})
           return
         }
@@ -64,152 +58,141 @@ export const useDeviceStore = defineStore('device', () => {
     }
 
     function handleMessage(msg) {
-        // 事件推送
-        if (msg.type === 'event') {
-          if (msg.event === 'device:status') {
-            status.value = msg.data?.data || msg.data
-            online.value = msg.data?.online ?? true
-          }
-          if (msg.event === 'containers:list') {
-            const raw = msg.data
-            const list = raw?.list || raw?.data?.list || []
-            containers.value = Array.isArray(list) ? list.sort((a, b) => a.indexNum - b.indexNum) : []
-          }
-          if (msg.event === 'aliases:list') {
-            containerAliases.value = msg.data || {}
-          }
-          if (msg.event === 'user:kicked') {
-            const kickedUser = msg.data?.username
-            const currentUser = auth.user?.username
-            // 只处理针对自己的踢出事件
-            if (kickedUser && currentUser && kickedUser !== currentUser) return
-            _kicked = true
-            const reason = msg.data?.reason
-            if (reason === 'password_changed') {
-              alert('密码已被修改，请重新登录')
-            } else if (reason === 'expired') {
-              alert('账号已到期，请联系管理员续期')
-            } else if (reason === 'disabled') {
-              alert('账号已被禁用')
-            } else if (reason === 'logout') {
-              // 自己退出的，不弹提示
-            } else {
-              alert('账号已被强制下线')
-            }
-            auth.logout()
-            window.location.href = '/login'
-            return
-          }
-          if (msg.event === 'user:permissions') {
-            auth.setPermissions(msg.data)
-          }
-          if (msg.event === 'screenshots') {
-            screenshots.value = msg.data || {}
-          }
-          // token 刷新
-          if (msg.event === 'token:refresh' && msg.data?.token) {
-            auth.token = msg.data.token
-            localStorage.setItem('token', msg.data.token)
-            console.log('[WS] token 已刷新')
-          }
-
-          // 通知外部事件监听器
-          for (const listener of eventListeners) {
-            try { listener(msg) } catch {}
-          }
+      if (msg.type === 'event') {
+        if (msg.event === 'device:status') {
+          status.value = msg.data?.data || msg.data
+          online.value = msg.data?.online ?? true
+        }
+        if (msg.event === 'device:auth401') {
+          triggerAuth401()
+        }
+        if (msg.event === 'containers:list') {
+          const raw = msg.data
+          const list = raw?.list || raw?.data?.list || []
+          containers.value = Array.isArray(list) ? list.sort((a, b) => a.indexNum - b.indexNum) : []
+        }
+        if (msg.event === 'aliases:list') {
+          containerAliases.value = msg.data || {}
+        }
+        if (msg.event === 'user:kicked') {
+          const kickedUser = msg.data?.username
+          const currentUser = auth.user?.username
+          if (kickedUser && currentUser && kickedUser !== currentUser) return
+          _kicked = true
+          const reason = msg.data?.reason
+          if (reason === 'password_changed') alert('密码已被修改，请重新登录')
+          else if (reason === 'expired') alert('账号已到期，请联系管理员续期')
+          else if (reason === 'disabled') alert('账号已被禁用')
+          else if (reason !== 'logout') alert('账号已被强制下线')
+          auth.logout()
+          window.location.href = '/login'
+          return
+        }
+        if (msg.event === 'user:permissions') auth.setPermissions(msg.data)
+        if (msg.event === 'screenshots') screenshots.value = msg.data || {}
+        if (msg.event === 'token:refresh' && msg.data?.token) {
+          auth.token = msg.data.token
+          localStorage.setItem('token', msg.data.token)
         }
 
-        // 请求响应
-        if (msg.type === 'response' && msg.id) {
-          const pending = pendingRequests.get(msg.id)
-          if (pending) {
-            clearTimeout(pending.timer)
-            pendingRequests.delete(msg.id)
-            if (msg.ok) {
-              pending.resolve(msg)
-            } else {
-              pending.reject(new Error(msg.message || '操作失败'))
+        for (const listener of eventListeners) { try { listener(msg) } catch {} }
+      }
+
+      if (msg.type === 'response' && msg.id) {
+        const pending = pendingRequests.get(msg.id)
+        if (pending) {
+          clearTimeout(pending.timer)
+          pendingRequests.delete(msg.id)
+          if (msg.ok) {
+            pending.resolve(msg)
+          } else {
+            const err = new Error(msg.message || '操作失败')
+            // 检测设备鉴权失败
+            if (msg.message?.includes('HTTP 401') || msg.message?.includes('设备需要鉴权密码')
+                || msg.message?.includes('Authentication Failed')) {
+              err.isAuth401 = true
+              // 触发外部 401 回调
+              _auth401Listeners.forEach(fn => { try { fn() } catch {} })
             }
+            pending.reject(err)
           }
         }
+      }
     }
 
-    ws.onopen = () => {
-      _reconnectDelay = 1000 // 连接成功，重置退避
-    }
+    ws.onopen = () => { _reconnectDelay = 1000 }
 
     ws.onclose = () => {
       online.value = false
-      if (_kicked) return // 被踢后不重连
-      const delay = _reconnectDelay
-      _reconnectDelay = Math.min(_reconnectDelay * 2, 30000) // 指数退避，最大 30 秒
-      setTimeout(() => connect(), delay)
+      if (_kicked) return
+      setTimeout(() => connect(), Math.min(_reconnectDelay * 2, 30000))
+      _reconnectDelay = Math.min(_reconnectDelay * 2, 30000)
     }
 
     ws.onerror = () => ws.close()
   }
 
   function disconnect() {
-    // 清理所有待处理请求
     for (const [id, pending] of pendingRequests) {
       clearTimeout(pending.timer)
       pending.reject(new Error('连接已断开'))
     }
     pendingRequests.clear()
-    if (ws) {
-      ws.close()
-      ws = null
-    }
+    if (ws) { ws.close(); ws = null }
   }
 
-  /**
-   * 通过 WS 发送请求并等待响应
-   * @param {string} action - 操作类型，如 'container:start'
-   * @param {object} data - 请求数据
-   * @param {number} timeout - 超时毫秒数，默认 30000
-   * @returns {Promise}
-   */
   function request(action, data = {}, timeout = 30000) {
     return new Promise((resolve, reject) => {
       if (!ws || ws.readyState !== WebSocket.OPEN) {
         reject(new Error('WebSocket 未连接'))
         return
       }
-
       const id = String(++_reqId)
       const timer = setTimeout(() => {
         pendingRequests.delete(id)
         reject(new Error('请求超时'))
       }, timeout)
-
       pendingRequests.set(id, { resolve, reject, timer })
-
       ws.send(JSON.stringify({ action, id, data }))
     })
   }
 
-  // 请求刷新容器列表（不等待响应，服务端会广播新数据）
   function refreshContainers() {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'containers:refresh', id: String(++_reqId) }))
     }
   }
 
-  // ========== 容器别名（公共方法） ==========
+  // 注册设备鉴权 401 回调
+  function onAuth401(fn) { _auth401Listeners.add(fn) }
+  function offAuth401(fn) { _auth401Listeners.delete(fn) }
 
-  // 获取容器显示名称：有别名返回别名，否则返回原始名
+  function triggerAuth401() {
+    _auth401Listeners.forEach(fn => { try { fn() } catch {} })
+  }
+
+  // 等待设备鉴权密码确认（返回 Promise，密码保存后 resolve）
+  let _auth401Resolve = null
+  function waitDeviceAuth() {
+    return new Promise(resolve => {
+      _auth401Resolve = resolve
+      triggerAuth401()
+    })
+  }
+  function resolveDeviceAuth() {
+    if (_auth401Resolve) { _auth401Resolve(); _auth401Resolve = null }
+  }
+
   function displayName(name) {
     if (!name) return ''
     return containerAliases.value[name] || name
   }
 
-  // 设置别名
   async function setAlias(name, alias) {
     await request('alias:set', { name, alias })
     containerAliases.value = { ...containerAliases.value, [name]: alias }
   }
 
-  // 删除别名
   async function removeAlias(name) {
     await request('alias:delete', { name })
     const copy = { ...containerAliases.value }
@@ -217,31 +200,21 @@ export const useDeviceStore = defineStore('device', () => {
     containerAliases.value = copy
   }
 
-  // 注册/注销事件监听器（跨 WS 重连保持有效）
-  function onEvent(listener) {
-    eventListeners.add(listener)
-  }
-  function offEvent(listener) {
-    eventListeners.delete(listener)
-  }
+  function onEvent(listener) { eventListeners.add(listener) }
+  function offEvent(listener) { eventListeners.delete(listener) }
 
-  // 请求投屏专用 token
   async function requestProjectionToken(containerName) {
     const auth = useAuthStore()
     const resp = await request('projection:token', { container_name: containerName })
     const data = resp.data
-    // 加密响应需要解密
     if (data?.encrypted && data?.data) {
       if (auth.sessionKey) {
         try {
           const plaintext = await aesDecrypt(auth.sessionKey, data.data)
           const parsed = JSON.parse(plaintext)
           return { token: parsed.token, udpPort: parsed.udpPort || '' }
-        } catch {
-          console.warn('[投屏] sessionKey 解密失败')
-        }
+        } catch { console.warn('[投屏] sessionKey 解密失败') }
       }
-      // sessionKey 不存在或解密失败，无法获取投屏 token
       console.warn('[投屏] 无 sessionKey，无法解密投屏 token')
       return null
     }
@@ -252,6 +225,7 @@ export const useDeviceStore = defineStore('device', () => {
     status, online, containers, containerAliases, screenshots,
     connect, disconnect, request, refreshContainers, requestProjectionToken,
     displayName, setAlias, removeAlias, onEvent, offEvent,
+    onAuth401, offAuth401, waitDeviceAuth, resolveDeviceAuth,
     get _ws() { return ws },
   }
 })

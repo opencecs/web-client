@@ -15,23 +15,25 @@ import (
 // 将 /api/sdk/* 请求透传到设备 http://device:port/*
 type SDKProxy struct {
 	deviceAddr string
+	deviceAuth string
 	httpClient *http.Client
 	// 长连接客户端，用于 SSE 流式请求（pullImage 等），无超时限制
 	streamClient *http.Client
 }
 
-func NewSDKProxy(deviceAddr string) *SDKProxy {
+func NewSDKProxy(deviceAddr string, auth *AuthService) *SDKProxy {
 	noRedirect := func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
 	}
 	return &SDKProxy{
 		deviceAddr: deviceAddr,
+		deviceAuth: buildDeviceAuth(auth.GetSetting("device_auth_pass")),
 		httpClient: &http.Client{
 			Timeout:       300 * time.Second,
 			CheckRedirect: noRedirect,
 		},
 		streamClient: &http.Client{
-			Timeout:       0, // 无超时，SSE 流可能持续很长时间
+			Timeout:       0,
 			CheckRedirect: noRedirect,
 		},
 	}
@@ -73,6 +75,9 @@ func (p *SDKProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 	}
 	if cl := r.Header.Get("Content-Length"); cl != "" {
 		proxyReq.Header.Set("Content-Length", cl)
+	}
+	if p.deviceAuth != "" {
+		proxyReq.Header.Set("Authorization", p.deviceAuth)
 	}
 
 	// 已知的流式请求路径使用无超时的 streamClient
@@ -150,7 +155,11 @@ func (p *SDKProxy) proxyWebSocket(w http.ResponseWriter, r *http.Request, path s
 	if r.URL.RawQuery != "" {
 		deviceWSURL += "?" + r.URL.RawQuery
 	}
-	deviceConn, _, err := websocket.DefaultDialer.Dial(deviceWSURL, nil)
+	dialHeader := http.Header{}
+	if p.deviceAuth != "" {
+		dialHeader.Set("Authorization", p.deviceAuth)
+	}
+	deviceConn, _, err := websocket.DefaultDialer.Dial(deviceWSURL, dialHeader)
 	if err != nil {
 		log.Printf("[SDKProxy] 连接设备 WebSocket 失败: %v", err)
 		frontConn.WriteMessage(websocket.CloseMessage,

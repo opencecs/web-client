@@ -18,6 +18,9 @@ func (c *WSClient) handleSettingsAction(req WSRequest) {
 			c.sendResponse(req.ID, false, "保存失败: "+err.Error(), nil)
 			return
 		}
+		if key == "device_auth_pass" {
+			c.hub.RefreshDeviceAuth()
+		}
 		c.sendResponse(req.ID, true, "保存成功", nil)
 	}
 }

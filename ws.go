@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +15,16 @@ import (
 
 	"github.com/gorilla/websocket"
 )
+
+// buildDeviceAuth 根据 settings 中 device_auth_pass 构建 Basic Auth 头
+// 用户名固定为 admin，密码来自 device_auth_pass 设置项
+func buildDeviceAuth(pwd string) string {
+	if pwd == "" {
+		return ""
+	}
+	creds := base64.StdEncoding.EncodeToString([]byte("admin:" + pwd))
+	return "Basic " + creds
+}
 
 // ParsedContainer 容器结构化缓存（一次解析，多处使用）
 type ParsedContainer struct {
@@ -112,6 +123,7 @@ type WSHub struct {
 
 	// 容器列表轮询
 	deviceAddr     string
+	deviceAuth     string               // Base64("user:password")，设备 SDK HTTP 401 鉴权
 	httpClient     *http.Client
 	streamClient   *http.Client // 无超时，用于流式代理
 	containerCache json.RawMessage    // 原始 JSON（admin 推送用）
@@ -127,7 +139,7 @@ type WSHub struct {
 }
 
 func NewWSHub(auth *AuthService, alias *ContainerAliasService, device *DeviceService, mytAuth *MytAuthService, deviceAddr string) *WSHub {
-	return &WSHub{
+	hub := &WSHub{
 		clients:    make(map[*WSClient]bool),
 		broadcast:  make(chan []byte, 256),
 		register:   make(chan *WSClient),
@@ -137,6 +149,7 @@ func NewWSHub(auth *AuthService, alias *ContainerAliasService, device *DeviceSer
 		device:     device,
 		mytAuth:    mytAuth,
 		deviceAddr: deviceAddr,
+		deviceAuth: buildDeviceAuth(auth.GetSetting("device_auth_pass")),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 			Transport: &http.Transport{
@@ -154,6 +167,13 @@ func NewWSHub(auth *AuthService, alias *ContainerAliasService, device *DeviceSer
 		},
 		refreshCh: make(chan struct{}, 1),
 	}
+	return hub
+}
+
+// RefreshDeviceAuth 重新从 settings 读取设备鉴权密码，更新 deviceAuth
+func (h *WSHub) RefreshDeviceAuth() {
+	authPass := h.auth.GetSetting("device_auth_pass")
+	h.deviceAuth = buildDeviceAuth(authPass)
 }
 
 func (h *WSHub) Run() {
@@ -360,12 +380,25 @@ func (h *WSHub) fetchAndBroadcastContainers() {
 	if err != nil {
 		return
 	}
+	if h.deviceAuth != "" {
+		req.Header.Set("Authorization", h.deviceAuth)
+	}
 	resp, err := h.httpClient.Do(req)
 	if err != nil {
 		return
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
+
+	// 设备鉴权失败时通过广播通知前端
+	if isAuthFailedBody(body) {
+		log.Printf("[WS] 设备鉴权失败，通知前端")
+		authMsg, _ := json.Marshal(map[string]interface{}{
+			"type": "event", "event": "device:auth401",
+		})
+		h.broadcast <- authMsg
+		return
+	}
 
 	// 一次性解析容器列表（后续所有查找/过滤都用结构化数据）
 	parsed := parseContainerList(body)
@@ -439,7 +472,7 @@ func (h *WSHub) fetchAndBroadcastContainers() {
 	}
 }
 
-// deviceRequest 向设备 SDK 发送 HTTP 请求
+// deviceRequest 向设备 SDK 发送 HTTP 请求，返回 body、逻辑状态码（0=成功，>0=错误）、错误
 func (h *WSHub) deviceRequest(method, path string, jsonBody interface{}) ([]byte, int, error) {
 	reqURL := fmt.Sprintf("http://%s%s", h.deviceAddr, path)
 	var bodyReader io.Reader
@@ -456,13 +489,52 @@ func (h *WSHub) deviceRequest(method, path string, jsonBody interface{}) ([]byte
 	if jsonBody != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	if h.deviceAuth != "" {
+		req.Header.Set("Authorization", h.deviceAuth)
+	}
 	resp, err := h.httpClient.Do(req)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
+
+	// 解析响应体中的 code 字段（设备 SDK HTTP 200 但 code≠0 表示业务错误）
+	var respData struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(body, &respData) == nil && respData.Code != 0 {
+		log.Printf("[Device] %s %s → HTTP %d, code=%d, message=%s", method, path, resp.StatusCode, respData.Code, respData.Message)
+		if respData.Code == 61 || respData.Code == 401 || strings.Contains(respData.Message, "Authentication Failed") {
+			return nil, respData.Code, fmt.Errorf("设备需要鉴权密码")
+		}
+		return nil, respData.Code, fmt.Errorf("设备返回错误 (code %d): %s", respData.Code, respData.Message)
+	}
+
 	return body, resp.StatusCode, nil
+}
+
+// isAuthFailedBody 检测响应体是否表示鉴权失败
+func isAuthFailedBody(body []byte) bool {
+	s := string(body)
+	if strings.Contains(s, "Authentication Failed") ||
+		strings.Contains(s, "authentication failed") ||
+		strings.Contains(s, "未授权") ||
+		strings.Contains(s, "鉴权失败") {
+		return true
+	}
+	// 解析 JSON，检测 code 字段（61 = 鉴权失败）
+	var parsed struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(body, &parsed) == nil {
+		if parsed.Code == 61 || parsed.Code == 401 {
+			return true
+		}
+	}
+	return false
 }
 
 // deviceRequestRaw 返回原始 JSON 数据
@@ -471,8 +543,14 @@ func (h *WSHub) deviceRequestRaw(method, path string, jsonBody interface{}) (jso
 	if err != nil {
 		return nil, fmt.Errorf("设备连接失败: %v", err)
 	}
+	if status == 401 {
+		return nil, fmt.Errorf("设备需要鉴权密码")
+	}
 	if status >= 400 {
 		return nil, fmt.Errorf("设备返回错误 (HTTP %d)", status)
+	}
+	if isAuthFailedBody(body) {
+		return nil, fmt.Errorf("设备需要鉴权密码")
 	}
 	return json.RawMessage(body), nil
 }

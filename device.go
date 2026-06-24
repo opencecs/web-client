@@ -340,6 +340,9 @@ func (d *DeviceService) PollStatus(hub *WSHub, interval time.Duration) {
 			cancel()
 			continue
 		}
+		if hub.deviceAuth != "" {
+			req.Header.Set("Authorization", hub.deviceAuth)
+		}
 
 		resp, err := d.httpClient.Do(req)
 		if err != nil {
@@ -351,6 +354,14 @@ func (d *DeviceService) PollStatus(hub *WSHub, interval time.Duration) {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
 		resp.Body.Close()
 		cancel()
+
+		// 设备鉴权失败时通过广播通知前端
+		if isAuthFailedBody(body) {
+			log.Printf("[Device] 设备鉴权失败，通知前端")
+			hub.Broadcast("device:auth401", nil)
+			hub.Broadcast("device:status", map[string]interface{}{"online": false, "error": "设备需要鉴权密码"})
+			continue
+		}
 
 		// Update cache
 		d.cacheMu.Lock()

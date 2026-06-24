@@ -39,7 +39,12 @@ func (h *ContainerExportHandler) HandleExport(w http.ResponseWriter, r *http.Req
 	exportName, err := h.triggerExport(containerName)
 	if err != nil {
 		log.Printf("[Export] 导出失败: %v", err)
-		jsonError(w, "导出失败: "+err.Error(), 500)
+		// 设备认证失败时返回 401，前端检测并弹出密码输入
+		if strings.Contains(err.Error(), "HTTP 401") {
+			jsonError(w, "设备需要鉴权密码", 401)
+		} else {
+			jsonError(w, "导出失败: "+err.Error(), 500)
+		}
 		return
 	}
 
@@ -59,7 +64,15 @@ func (h *ContainerExportHandler) triggerExport(name string) (string, error) {
 	data, _ := json.Marshal(map[string]string{"name": name})
 
 	client := &http.Client{Timeout: 300 * time.Second}
-	resp, err := client.Post(reqURL, "application/json", strings.NewReader(string(data)))
+	httpReq, err := http.NewRequest("POST", reqURL, strings.NewReader(string(data)))
+	var resp *http.Response
+	if err == nil {
+		httpReq.Header.Set("Content-Type", "application/json")
+		if h.hub.deviceAuth != "" {
+			httpReq.Header.Set("Authorization", h.hub.deviceAuth)
+		}
+		resp, err = client.Do(httpReq)
+	}
 	if err != nil {
 		return "", fmt.Errorf("设备连接失败: %w", err)
 	}
@@ -98,8 +111,13 @@ func (h *ContainerExportHandler) streamDownload(w http.ResponseWriter, exportNam
 	var resp *http.Response
 	var successURL string
 
+	deviceAuth := h.hub.deviceAuth
 	for _, downloadURL := range downloadURLs {
-		r, err := client.Get(downloadURL)
+		httpReq, _ := http.NewRequest("GET", downloadURL, nil)
+		if deviceAuth != "" {
+			httpReq.Header.Set("Authorization", deviceAuth)
+		}
+		r, err := client.Do(httpReq)
 		if err != nil {
 			log.Printf("[Export] 下载路径失败: %s, %v", downloadURL, err)
 			continue

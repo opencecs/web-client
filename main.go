@@ -54,7 +54,7 @@ func main() {
 	authService := NewAuthService(db)
 	deviceService := NewDeviceService(deviceAddr)
 	mytAuthService := NewMytAuthService(db, deviceAddr, deviceService)
-	sdkProxy := NewSDKProxy(deviceAddr)
+	sdkProxy := NewSDKProxy(deviceAddr, authService)
 	aliasService := NewContainerAliasService(db)
 	wsHub := NewWSHub(authService, aliasService, deviceService, mytAuthService, deviceAddr)
 	authService.wsHub = wsHub

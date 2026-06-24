@@ -254,7 +254,15 @@ async function doExport(name) {
   actionLoading[name] = 'export'
   try {
     const token = localStorage.getItem('token')
-    const resp = await fetch(`/api/container/export?name=${encodeURIComponent(name)}&token=${token}`)
+    let resp = await fetch(`/api/container/export?name=${encodeURIComponent(name)}&token=${token}`)
+    if (resp.status === 401) {
+      await device.waitDeviceAuth()
+      resp = await fetch(`/api/container/export?name=${encodeURIComponent(name)}&token=${token}`)
+      if (resp.status === 401) {
+        ElMessage.error('鉴权失败，请检查密码')
+        return
+      }
+    }
     if (!resp.ok) {
       const text = await resp.text()
       throw new Error(text || `导出失败 (HTTP ${resp.status})`)

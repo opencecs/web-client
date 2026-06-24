@@ -204,6 +204,10 @@ func (c *WSClient) sdkAction(req WSRequest, method, path string, body interface{
 		defer resp.Body.Close()
 		respBody, _ := io.ReadAll(resp.Body)
 		log.Printf("[SDK] %s %s → HTTP %d, 响应: %s", method, path, resp.StatusCode, string(respBody))
+		if resp.StatusCode == 401 || isAuthFailedBody(respBody) {
+			c.sendResponse(req.ID, false, "设备需要鉴权密码", nil)
+			return
+		}
 		if resp.StatusCode >= 400 {
 			c.sendResponse(req.ID, false, fmt.Sprintf("操作失败 (HTTP %d)", resp.StatusCode), nil)
 			return
@@ -214,6 +218,10 @@ func (c *WSClient) sdkAction(req WSRequest, method, path string, body interface{
 	raw, err := c.hub.sdkRequest(method, path, body, query)
 	if err != nil {
 		c.sendResponse(req.ID, false, err.Error(), nil)
+		return
+	}
+	if isAuthFailedBody(raw) {
+		c.sendResponse(req.ID, false, "设备需要鉴权密码", nil)
 		return
 	}
 	c.sendResponse(req.ID, true, "ok", json.RawMessage(raw))

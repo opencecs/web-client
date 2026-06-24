@@ -30,6 +30,21 @@
       </div>
     </template>
     <router-view v-else />
+
+    <!-- 设备鉴权密码弹窗 -->
+    <el-dialog v-model="authDialogVisible" title="设备鉴权密码" width="400px"
+      :close-on-click-modal="false" :close-on-press-escape="false">
+      <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px">
+        设备 SDK 需要鉴权密码才能访问，请输入密码继续操作
+      </div>
+      <el-input v-model="authPassword" placeholder="请输入密码" type="password" show-password
+        style="max-width: 260px" @keydown.enter="confirmAuthPassword" ref="authInputRef" />
+      <template #footer>
+        <el-button @click="authDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="authSaving" @click="confirmAuthPassword">确认</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 手机 UA 被强制桌面模式时，显示回切按钮 -->
     <div v-if="showMobileSwitch" class="mobile-switch-hint" @click="switchToMobile">
       切换到手机版
@@ -38,18 +53,50 @@
 </template>
 
 <script setup>
-import { onMounted, computed, onBeforeUnmount, ref } from 'vue'
+import { onMounted, computed, onBeforeUnmount, ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth.js'
 import { useDeviceStore } from './stores/device.js'
 import Sidebar from './components/Sidebar.vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { checkIsMobile } from './utils/isMobile.js'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const auth = useAuthStore()
 const device = useDeviceStore()
 const sidebarWidth = ref(64)
+
+// 设备鉴权密码弹窗
+const authDialogVisible = ref(false)
+const authPassword = ref('')
+const authSaving = ref(false)
+const authInputRef = ref(null)
+
+device.onAuth401(() => {
+  authDialogVisible.value = true
+  nextTick(() => authInputRef.value?.focus())
+})
+
+async function confirmAuthPassword() {
+  const pwd = authPassword.value.trim()
+  if (!pwd) {
+    ElMessage.warning('请输入密码')
+    return
+  }
+  authSaving.value = true
+  try {
+    await device.request('settings:set', { key: 'device_auth_pass', value: pwd })
+    authPassword.value = ''
+    authDialogVisible.value = false
+    device.resolveDeviceAuth()
+    ElMessage.success('设备鉴权密码已保存')
+  } catch (e) {
+    ElMessage.error('保存失败: ' + (e.message || ''))
+  } finally {
+    authSaving.value = false
+  }
+}
 
 function onSidebarCollapse(collapsed) {
   sidebarWidth.value = collapsed ? 64 : 200

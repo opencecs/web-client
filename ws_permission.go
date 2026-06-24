@@ -88,9 +88,9 @@ func (c *WSClient) hasPermission(action string) bool {
 		"myt:autoToggle", "myt:bindStatus", "myt:bind", "myt:vcode", "myt:unbind":
 		return false
 
-	// 系统设置（仅 admin）
+	// 系统设置（所有人可读写）
 	case "settings:get", "settings:set":
-		return false
+		return true
 
 	// 用户管理（仅 admin）
 	case "user:list", "user:create", "user:update", "user:delete",

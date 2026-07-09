@@ -33,8 +33,8 @@
         <label class="sidebar-btn" title="上传文件（APK自动安装）">
           📁<span>上传</span><input type="file" style="display:none" @change="doUpload" ref="uploadInput" />
         </label>
-        <label class="sidebar-btn" title="上传 Google 证书（PEM）">
-          🔑<span>证书</span><input type="file" accept=".pem" style="display:none" @change="doKeyboxUpload" ref="keyboxInput" />
+        <label class="sidebar-btn" title="上传 Google 证书（PEM/XML）">
+          🔑<span>证书</span><input type="file" accept=".pem,.xml" style="display:none" @change="doKeyboxUpload" ref="keyboxInput" />
         </label>
       </div>
     </div>
@@ -349,7 +349,10 @@ async function doCertUpload(e) {
   form.append('file', file)
   try {
     await api.post(`/container/${props.container.name}/cert`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 })
-  } catch {}
+    alert(`证书上传成功: ${file.name}`)
+  } catch (err) {
+    alert(`证书上传失败: ${err?.message || err}`)
+  }
   if (certInput.value) certInput.value.value = ''
 }
 
@@ -358,9 +361,15 @@ async function doKeyboxUpload(e) {
   if (!file || !props.container) return
   const form = new FormData()
   form.append('file', file)
+  // 根据扩展名选择接口：.xml 走 keybox，.pem 走 cert
+  const isXml = file.name.toLowerCase().endsWith('.xml')
+  const endpoint = isXml ? 'keybox' : 'cert'
   try {
-    await api.post(`/container/${props.container.name}/keybox`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 })
-  } catch {}
+    await api.post(`/container/${props.container.name}/${endpoint}`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 })
+    alert(`证书上传成功: ${file.name}`)
+  } catch (err) {
+    alert(`证书上传失败: ${err?.message || err}`)
+  }
   if (keyboxInput.value) keyboxInput.value.value = ''
 }
 

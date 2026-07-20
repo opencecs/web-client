@@ -410,10 +410,11 @@ function onClipboardKey(e) {
 }
 
 // 接收 iframe 内 Ctrl+V 的粘贴请求（SDK 的 send_input_txt 中文乱码，改走 HTTP API）
+// 必须校验 e.source 是当前组件的 iframe，否则多窗口时会串到其它容器
 function onIframePaste(e) {
-  if (e.data?.action === 'pasteToAndroid' && e.data.text && props.container) {
-    device.request('clipboard:paste', { name: props.container.name, text: e.data.text }).catch(() => {})
-  }
+  if (e.data?.action !== 'pasteToAndroid' || !e.data.text || !props.container) return
+  if (iframeRef.value?.contentWindow !== e.source) return
+  device.request('clipboard:paste', { name: props.container.name, text: e.data.text }).catch(() => {})
 }
 
 watch(() => props.modelValue, (visible) => {

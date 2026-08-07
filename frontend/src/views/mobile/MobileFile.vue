@@ -40,6 +40,7 @@
             <template #value>
               <div style="display: flex; gap: 8px">
                 <van-icon name="down" size="18" color="#409eff" @click="downloadFile(f.name)" />
+                <van-icon name="link" size="18" color="#67c23a" @click="copyLink(f.name)" />
                 <van-icon name="delete-o" size="18" color="#f56c6c" @click="confirmDelete(f.name)" />
               </div>
             </template>
@@ -56,9 +57,8 @@
 import { ref, onMounted, reactive } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import api from '../../api/index.js'
-import { useAuthStore } from '../../stores/auth.js'
+import { copyText } from '../../utils/clipboard.js'
 
-const auth = useAuthStore()
 const loading = ref(false)
 const uploading = ref(false)
 const files = ref([])
@@ -151,10 +151,32 @@ async function batchDelete() {
   loadFiles()
 }
 
-function downloadFile(name) {
-  const token = auth.token
-  const url = `/api/file/download?name=${encodeURIComponent(name)}&token=${token}`
-  window.open(url, '_blank')
+async function getDownloadUrl(name) {
+  // 用登录态换取下载专用长期 token（30 天有效），避免链接因 JWT 过期而失效
+  const { data } = await api.get('/file/download-token')
+  const token = data?.token
+  if (!token) throw new Error('获取下载 token 失败')
+  // 拼接绝对地址，便于分享给他人访问
+  return `${location.origin}/api/file/download?name=${encodeURIComponent(name)}&token=${token}`
+}
+
+async function downloadFile(name) {
+  try {
+    const url = await getDownloadUrl(name)
+    window.open(url, '_blank')
+  } catch {
+    showToast('获取下载 token 失败')
+  }
+}
+
+async function copyLink(name) {
+  try {
+    const url = await getDownloadUrl(name)
+    const ok = await copyText(url)
+    showToast(ok ? '下载链接已复制' : '复制链接失败')
+  } catch {
+    showToast('复制链接失败')
+  }
 }
 
 onMounted(() => { loadFiles() })

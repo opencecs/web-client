@@ -118,16 +118,17 @@ func main() {
 		r.Post("/api/container/{name}/cert", uploadProxy.HandleCert)
 		r.Post("/api/container/{name}/keybox", uploadProxy.HandleKeybox)
 
-			// 容器导出下载
-			exportHandler := &ContainerExportHandler{auth: authService, hub: wsHub}
-			r.Get("/api/container/export", exportHandler.HandleExport)
+		// 容器导出下载
+		exportHandler := &ContainerExportHandler{auth: authService, hub: wsHub}
+		r.Get("/api/container/export", exportHandler.HandleExport)
 
-			// 文件管理（上传到宿主机 mmc/upload 目录）
-			fileManage := &FileManageHandler{auth: authService}
-			r.Post("/api/file/upload", fileManage.HandleUpload)
-			r.Get("/api/file/list", fileManage.HandleList)
-			r.Delete("/api/file/delete", fileManage.HandleDelete)
-			r.Get("/api/file/download", fileManage.HandleDownload)
+		// 文件管理（上传到宿主机 mmc/upload 目录）
+		fileManage := &FileManageHandler{auth: authService}
+		r.Post("/api/file/upload", fileManage.HandleUpload)
+		r.Get("/api/file/list", fileManage.HandleList)
+		r.Delete("/api/file/delete", fileManage.HandleDelete)
+		// 下载专用长期 token（需登录 JWT 换取）
+		r.Get("/api/file/download-token", fileManage.HandleDownloadToken)
 		// WebSocket（所有业务走这里）
 		r.Get("/ws", wsHub.HandleWS)
 
@@ -140,6 +141,10 @@ func main() {
 		// SDK WebSocket 代理（容器终端 exec 等）- 所有登录用户可用
 		r.HandleFunc("/api/sdk/*", sdkProxy.HandleProxy)
 	})
+
+	// 下载接口内部校验 token（支持下载专用长期 token + 登录 JWT，须在 JWT 组外，避免下载 token 被主中间件拦截）
+	fileManageOuter := &FileManageHandler{auth: authService}
+	r.Get("/api/file/download", fileManageOuter.HandleDownload)
 
 	// webplayer 静态文件（ETag + 长缓存，避免重复传输）
 	wpFS, _ := fs.Sub(webplayerFS, "webplayer")

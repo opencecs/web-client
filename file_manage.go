@@ -38,6 +38,30 @@ func uploadDir() string {
 	return filepath.Join(base, "mmc", "upload")
 }
 
+// HandleDownloadToken 生成文件下载专用长期 token（30 天有效）
+// 下载链接若用登录 JWT 会因 24 小时过期而失效，需在下载前换取长期 token
+func (h *FileManageHandler) HandleDownloadToken(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value(userContextKey).(*Claims)
+	if claims.Role != "admin" {
+		perms := h.auth.GetUserPermissions(claims.UserID)
+		if perms == nil || !perms.MenuFile {
+			jsonError(w, "无权限", 403)
+			return
+		}
+	}
+
+	token, err := h.auth.generateDownloadToken(claims.UserID, claims.Username, claims.Role)
+	if err != nil {
+		jsonError(w, "token 生成失败", 500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"token":   token,
+	})
+}
+
 // HandleUpload 上传文件到 mmc 目录（流式写入，支持大文件）
 func (h *FileManageHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
 	// 权限检查：admin 或 menu_file 权限
@@ -218,12 +242,18 @@ func (h *FileManageHandler) HandleDelete(w http.ResponseWriter, r *http.Request)
 }
 
 // HandleDownload 下载 mmc 目录下的文件
+// token 支持两种：下载专用长期 token（/api/file/download-token 生成）或登录 JWT（兼容旧链接）
 func (h *FileManageHandler) HandleDownload(w http.ResponseWriter, r *http.Request) {
-	claims := r.Context().Value(userContextKey).(*Claims)
-	if claims.Role != "admin" {
-		perms := h.auth.GetUserPermissions(claims.UserID)
+	role := h.authenticateDownload(r)
+	if role == "" {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+	// 权限检查：admin 或 menu_file 权限
+	if role != "admin" {
+		perms := h.lookupPermissions(r)
 		if perms == nil || !perms.MenuFile {
-			jsonError(w, "无权限", 403)
+			http.Error(w, `{"error":"无权限"}`, http.StatusForbidden)
 			return
 		}
 	}
@@ -278,6 +308,56 @@ func formatFileSize(b int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// authenticateDownload 校验下载请求的 token，返回角色（"" 表示无效）
+// 兼容下载专用 token 与登录 JWT，避免下载链接随登录状态失效
+func (h *FileManageHandler) authenticateDownload(r *http.Request) string {
+	tokenStr := r.URL.Query().Get("token")
+
+	// 优先尝试下载专用长期 token
+	if tokenStr != "" {
+		if claims, err := h.auth.parseDownloadToken(tokenStr); err == nil {
+			// 账号还需有效，避免已禁用/过期用户继续分享链接
+			user := h.auth.getUserByID(claims.UserID)
+			if user != nil && user.Enabled {
+				return claims.Role
+			}
+		}
+	}
+
+	// 兼容旧格式：登录 JWT（Header 或 query）
+	if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+		tokenStr = auth[7:]
+	}
+	if tokenStr != "" {
+		if claims, err := h.auth.parseToken(tokenStr); err == nil {
+			user := h.auth.getUserByID(claims.UserID)
+			if user != nil && user.Enabled {
+				return claims.Role
+			}
+		}
+	}
+	return ""
+}
+
+// lookupPermissions 查询用户的文件管理权限
+func (h *FileManageHandler) lookupPermissions(r *http.Request) *UserPermissions {
+	tokenStr := r.URL.Query().Get("token")
+	// 下载专用 token
+	if claims, err := h.auth.parseDownloadToken(tokenStr); err == nil {
+		return h.auth.GetUserPermissions(claims.UserID)
+	}
+	// 登录 JWT
+	if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+		tokenStr = auth[7:]
+	} else if tokenStr == "" {
+		tokenStr = r.URL.Query().Get("token")
+	}
+	if claims, err := h.auth.parseToken(tokenStr); err == nil {
+		return h.auth.GetUserPermissions(claims.UserID)
+	}
+	return nil
 }
 
 // 避免未使用导入

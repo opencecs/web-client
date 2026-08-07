@@ -235,6 +235,52 @@ func (s *AuthService) parseProjectionToken(tokenStr string) (*ProjectionClaims, 
 	return claims, nil
 }
 
+// --- 下载专用 Token ---
+
+// DownloadClaims 文件下载专用 JWT Claims
+// 长有效期（30天），仅用于 /api/file/download，避免分享下载链接依赖登录 JWT 而过期
+type DownloadClaims struct {
+	UserID   int64  `json:"uid"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+	Purpose  string `json:"purpose"`
+	jwt.RegisteredClaims
+}
+
+// downloadTokenTTL 下载 token 有效期（30 天）
+const downloadTokenTTL = 30 * 24 * time.Hour
+
+// generateDownloadToken 生成文件下载专用 token
+func (s *AuthService) generateDownloadToken(userID int64, username, role string) (string, error) {
+	claims := &DownloadClaims{
+		UserID:   userID,
+		Username: username,
+		Role:     role,
+		Purpose:  "download",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(downloadTokenTTL)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtSecret)
+}
+
+// parseDownloadToken 解析下载专用 token
+func (s *AuthService) parseDownloadToken(tokenStr string) (*DownloadClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &DownloadClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims := token.Claims.(*DownloadClaims)
+	if claims.Purpose != "download" {
+		return nil, fmt.Errorf("invalid token purpose")
+	}
+	return claims, nil
+}
+
 // --- Session Key 加密 ---
 
 // generateSessionKey 生成 32 字节随机会话密钥

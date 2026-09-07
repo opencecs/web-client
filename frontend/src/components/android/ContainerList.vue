@@ -80,19 +80,28 @@
     </el-dialog>
 
     <!-- 复制弹窗 -->
-    <el-dialog v-model="copyVisible" title="复制容器" width="400px">
+    <el-dialog v-model="copyVisible" title="复制容器" width="400px" :close-on-click-modal="!copying">
       <el-form label-width="90px">
         <el-form-item label="源容器">{{ copyTarget?.name }}</el-form-item>
         <el-form-item label="目标坑位">
-          <el-input-number v-model="copySlot" :min="0" :max="maxSlots" :step="1" />
+          <el-input-number v-model="copySlot" :min="0" :max="maxSlots" :step="1" :disabled="copying" />
           <span style="color: #b0b0b0; margin-left: 8px; font-size: 12px">0 = 自动分配</span>
         </el-form-item>
         <el-form-item label="复制数量">
-          <el-input-number v-model="copyCount" :min="1" :max="20" :step="1" />
+          <el-input-number v-model="copyCount" :min="1" :max="20" :step="1" :disabled="copying" />
+        </el-form-item>
+        <el-form-item v-if="copyCount > 1">
+          <span style="color: #b0b0b0; font-size: 12px">将在{{ copySlot > 0 ? `坑位 ${copySlot}` : '自动分配的坑位' }}创建 {{ copyCount }} 个容器（同坑位可多个容器，同时只能运行一个）</span>
         </el-form-item>
       </el-form>
+      <div v-if="copying && copyProgress.total > 0">
+        <el-progress :percentage="Math.min(100, Math.round(copyProgress.current / copyProgress.total * 100))" />
+        <p style="color: #b0b0b0; font-size: 12px; margin: 4px 0 0">
+          {{ copyProgress.message || `正在复制 ${copyProgress.current} / ${copyProgress.total}` }}
+        </p>
+      </div>
       <template #footer>
-        <el-button @click="copyVisible = false">取消</el-button>
+        <el-button @click="copyVisible = false" :disabled="copying">取消</el-button>
         <el-button type="primary" :loading="copying" @click="doCopy">确认</el-button>
       </template>
     </el-dialog>
@@ -120,7 +129,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { useDeviceStore } from '../../stores/device.js'
@@ -246,6 +255,7 @@ const copyTarget = ref(null)
 const copySlot = ref(0)
 const copyCount = ref(1)
 const copying = ref(false)
+const copyProgress = reactive({ total: 0, current: 0, message: '' })
 
 function startCopy(row) {
   copyTarget.value = row
@@ -256,17 +266,30 @@ function startCopy(row) {
 
 async function doCopy() {
   copying.value = true
+  Object.assign(copyProgress, { total: copyCount.value, current: 0, message: '' })
+  // 监听后端推送的复制进度（SSE 转发 + 轮询新增数兜底）
+  const onProgress = (msg) => {
+    if (msg.event === 'copy:progress' && msg.data) {
+      if (msg.data.total) copyProgress.total = msg.data.total
+      if (msg.data.current != null) copyProgress.current = msg.data.current
+      if (msg.data.message) copyProgress.message = msg.data.message
+    }
+  }
+  device.onEvent(onProgress)
   try {
+    // 超时与后端对齐（每台 90 秒 + 2 分钟基础）再加缓冲
+    const timeout = (2 + copyCount.value) * 90 * 1000 + 60000
     await device.request('container:copy', {
       name: copyTarget.value.name,
       indexNum: copySlot.value,
       count: copyCount.value
-    })
+    }, timeout)
     ElMessage.success('复制成功')
     copyVisible.value = false
   } catch (e) {
     ElMessage.error(e.message || '复制失败')
   } finally {
+    device.offEvent(onProgress)
     copying.value = false
   }
 }

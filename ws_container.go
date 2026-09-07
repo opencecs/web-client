@@ -1,9 +1,15 @@
 package main
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -52,18 +58,30 @@ func (c *WSClient) handleContainerAction(req WSRequest) {
 		name := getStr(req.Data, "name")
 		indexNum := getNum(req.Data, "indexNum")
 		count := getNum(req.Data, "count")
-		// 检查目标坑位权限
+		if count < 1 {
+			count = 1
+		}
+		// 复制是在同一坑位创建多个容器，只检查该坑位权限
 		if !c.isAdmin && c.permissions != nil {
-			for i := 0; i < count; i++ {
-				if !c.canAccessSlot(indexNum + i) {
-					c.sendResponse(req.ID, false, fmt.Sprintf("无权操作坑位 %d", indexNum+i), nil)
-					return
-				}
+			// 未指定坑位（0=自动分配）时按源容器所在坑位检查
+			if indexNum <= 0 {
+				indexNum = c.getContainerSlot(name)
+			}
+			if !c.canAccessSlot(indexNum) {
+				c.sendResponse(req.ID, false, fmt.Sprintf("无权操作坑位 %d", indexNum), nil)
+				return
 			}
 		}
 		path := fmt.Sprintf("/android/copy?name=%s&indexNum=%d&count=%d", url.QueryEscape(name), indexNum, count)
-		body, status, err := c.hub.deviceRequest("GET", path, nil)
-		c.handleDeviceResponse(req.ID, body, status, err)
+		added, errMsg := c.streamDeviceCopy(path, count)
+		if added >= count {
+			c.sendResponse(req.ID, true, fmt.Sprintf("复制成功（%d 台）", added), nil)
+		} else if added > 0 {
+			c.sendResponse(req.ID, false, fmt.Sprintf("部分成功：%d/%d 台，%s", added, count, errMsg), nil)
+		} else {
+			c.sendResponse(req.ID, false, errMsg, nil)
+		}
+		c.hub.TriggerRefresh()
 	}
 }
 
@@ -160,4 +178,195 @@ func (c *WSClient) clearSlotScreenshot(containerName string) {
 	if c.hub.ssCache.ClearSlot(slot) {
 		c.hub.pushScreenshots(c.hub.ssCache)
 	}
+}
+
+// streamDeviceCopy 消费设备端 /android/copy 的 SSE 流式响应。
+// 设备端异步复制并通过事件推送进度（event:/data: 行），流可能提前关闭，
+// 因此结束后轮询容器列表确认最终新增数。返回新增容器数和错误信息。
+func (c *WSClient) streamDeviceCopy(path string, count int) (int, string) {
+	// 记录复制前的容器名集合，用于识别新增
+	before := c.hub.containerNameSet()
+
+	// 总超时按台数估算（每台 90 秒 + 2 分钟基础），下限 3 分钟
+	timeout := time.Duration(2+count) * 90 * time.Second
+	if timeout < 3*time.Minute {
+		timeout = 3 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	reqURL := fmt.Sprintf("http://%s%s", c.hub.deviceAddr, path)
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
+	if err != nil {
+		return 0, err.Error()
+	}
+	req.Header.Set("Accept", "text/event-stream")
+	if c.hub.deviceAuth != "" {
+		req.Header.Set("Authorization", c.hub.deviceAuth)
+	}
+	// 必须用无超时的 streamClient：共享 httpClient 的 10 秒 Timeout 会掐断 SSE 流
+	resp, err := c.hub.streamClient.Do(req)
+	if err != nil {
+		return 0, "设备连接失败: " + err.Error()
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+		if resp.StatusCode == 401 || isAuthFailedBody(body) {
+			return 0, "设备需要鉴权密码"
+		}
+		msg := parseDeviceErrorMessage(body, resp.StatusCode)
+		return 0, msg
+	}
+
+	// 逐行解析 SSE 流：转发进度事件给前端、捕获错误事件（记录完整事件流便于排查）
+	// 设备端事件语义：status=copying 进行中 / status=success 单台成功（message 为容器标识）/ status=done 全部完成 / status=error 或 event:error 失败
+	reader := bufio.NewReader(resp.Body)
+	var errMsg string
+	var streamDone bool
+	var events []string
+	for {
+		line, readErr := reader.ReadString('\n')
+		if line != "" {
+			line = strings.TrimRight(line, "\r\n")
+			switch {
+			case strings.HasPrefix(line, "event:"):
+				if len(events) < 200 {
+					events = append(events, line)
+				}
+				if strings.TrimSpace(strings.TrimPrefix(line, "event:")) == "error" {
+					errMsg = "设备端返回错误"
+				}
+			case strings.HasPrefix(line, "data:"):
+				data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+				if len(events) < 200 {
+					events = append(events, "data: "+truncateStr(data, 300))
+				}
+				var prog struct {
+					Name    string   `json:"name"`
+					Current int      `json:"current"`
+					Total   int      `json:"total"`
+					Status  string   `json:"status"`
+					Message string   `json:"message"`
+					Success []string `json:"success"`
+				}
+				if json.Unmarshal([]byte(data), &prog) == nil {
+					switch prog.Status {
+					case "error":
+						// 设备端明确的失败事件
+						if prog.Message != "" {
+							errMsg = prog.Message
+						} else if errMsg == "" {
+							errMsg = "设备端复制失败"
+						}
+					case "done":
+						// 全部完成（success 数组为成功的容器名列表）
+						streamDone = true
+					}
+					// 转发进度（success 的 message 是容器标识 hash，对用户无意义，换成完成提示）
+					msg := prog.Message
+					if prog.Status == "success" {
+						msg = fmt.Sprintf("已完成 %d/%d 台", prog.Current, prog.Total)
+					}
+					c.pushCopyProgress(prog.Current, prog.Total, msg)
+				}
+			}
+		}
+		if readErr != nil {
+			break // 流结束（EOF / 超时 / 连接断开）
+		}
+	}
+	log.Printf("[Copy] SSE 流结束 count=%d done=%v errMsg=%q 事件流:\n%s", count, streamDone, errMsg, strings.Join(events, "\n"))
+
+	// 流结束后轮询容器列表确认最终新增数（流可能提前关闭，复制仍在后台进行）
+	// 每轮拉取都会广播，前端容器列表实时更新
+	pollDeadline := time.Now().Add(time.Duration(count)*90*time.Second + time.Minute)
+	if streamDone || errMsg != "" {
+		// 设备端已确认完成/失败，只需短暂等待列表同步
+		pollDeadline = time.Now().Add(30 * time.Second)
+	}
+	log.Printf("[Copy] 进入轮询确认 count=%d 窗口=%v", count, time.Until(pollDeadline).Round(time.Second))
+	for time.Now().Before(pollDeadline) {
+		c.hub.fetchAndBroadcastContainers()
+		added := c.hub.countNewContainers(before)
+		if added >= count {
+			log.Printf("[Copy] 轮询确认完成 新增 %d/%d 台", added, count)
+			return added, ""
+		}
+		c.pushCopyProgress(added, count, fmt.Sprintf("已复制 %d/%d 台", added, count))
+		time.Sleep(3 * time.Second)
+	}
+
+	added := c.hub.countNewContainers(before)
+	log.Printf("[Copy] 轮询结束 最终新增 %d/%d 台 errMsg=%q", added, count, errMsg)
+	if added > 0 {
+		return added, errMsg
+	}
+	if errMsg == "" {
+		errMsg = "复制超时：未检测到新增容器"
+	}
+	return 0, errMsg
+}
+
+// pushCopyProgress 向当前客户端推送复制进度事件
+func (c *WSClient) pushCopyProgress(current, total int, message string) {
+	if total <= 0 {
+		return
+	}
+	c.SendJSON(map[string]interface{}{
+		"type":  "event",
+		"event": "copy:progress",
+		"data": map[string]interface{}{
+			"current": current,
+			"total":   total,
+			"message": message,
+		},
+	})
+}
+
+// truncateStr 截断字符串到指定长度
+func truncateStr(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
+}
+
+// parseDeviceErrorMessage 从设备错误响应中提取可读信息
+func parseDeviceErrorMessage(body []byte, status int) string {
+	var errResp map[string]interface{}
+	if json.Unmarshal(body, &errResp) == nil {
+		if msg, ok := errResp["message"].(string); ok {
+			return msg
+		}
+		if msg, ok := errResp["error"].(string); ok {
+			return msg
+		}
+	}
+	return fmt.Sprintf("操作失败 (HTTP %d)", status)
+}
+
+// containerNameSet 返回当前所有容器名的集合
+func (h *WSHub) containerNameSet() map[string]bool {
+	h.containerMu.RLock()
+	defer h.containerMu.RUnlock()
+	names := make(map[string]bool, len(h.parsedContainers))
+	for _, pc := range h.parsedContainers {
+		names[pc.Name] = true
+	}
+	return names
+}
+
+// countNewContainers 统计不在旧集合中的容器数
+func (h *WSHub) countNewContainers(old map[string]bool) int {
+	h.containerMu.RLock()
+	defer h.containerMu.RUnlock()
+	n := 0
+	for _, pc := range h.parsedContainers {
+		if !old[pc.Name] {
+			n++
+		}
+	}
+	return n
 }

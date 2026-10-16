@@ -15,6 +15,7 @@
       <el-button v-if="auth.can('backup_manage')" size="small" :disabled="!singleContainer" @click="$emit('backup-switch', liveSlots[0])">备份切换</el-button>
       <el-button v-if="auth.can('switch_model')" size="small" :disabled="!singleContainer" @click="$emit('switch-model', singleContainer)">切换机型</el-button>
       <el-button v-if="auth.can('menu_file')" size="small" :disabled="!hasContainer" @click="$emit('batch-upload')">批量上传</el-button>
+      <el-button v-if="auth.can('menu_file')" size="small" :disabled="!hasContainer" @click="$emit('install-apks', uploadContainers)">上传APKS</el-button>
       <el-button v-if="auth.can('container_delete')" type="danger" size="small" :disabled="!hasContainer" @click="confirmAction('delete')">删除</el-button>
     </el-space>
     <span class="selection-hint" v-if="selected.length > 0">
@@ -43,7 +44,7 @@ const props = defineProps({
   selected: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['create', 'projection', 'terminal', 'backup-switch', 'rename', 'copy', 'close-all-projections', 's5proxy', 'switch-model', 'batch-upload'])
+const emit = defineEmits(['create', 'projection', 'terminal', 'backup-switch', 'rename', 'copy', 'close-all-projections', 's5proxy', 'switch-model', 'batch-upload', 'install-apks'])
 
 const auth = useAuthStore()
 const device = useDeviceStore()
@@ -67,6 +68,8 @@ const liveSlots = computed(() => {
 })
 
 const hasContainer = computed(() => liveSlots.value.some(s => s.container))
+// 上传APKS 的目标容器列表（选中坑位中所有有容器的）
+const uploadContainers = computed(() => liveSlots.value.filter(s => s.container).map(s => s.container))
 const hasRunning = computed(() => liveSlots.value.some(s => s.running))
 const hasStopped = computed(() => liveSlots.value.some(s => s.container && !s.running))
 const isSingle = computed(() => liveSlots.value.length === 1)

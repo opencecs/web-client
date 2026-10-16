@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -272,6 +273,87 @@ func (p *ContainerUploadProxy) forwardMultipart(w http.ResponseWriter, r *http.R
 	if strings.HasSuffix(strings.ToLower(filename), ".apk") && resp.StatusCode < 400 {
 		go p.autoInstallAPK(containerName, filename)
 	}
+}
+
+// HandleInstallApks 上传 APKS 压缩包转发到容器 POST /installapks（安装多 APK 包）
+// 设备端示例：curl -X POST "http://ip:port/installapks" -H "Content-Type: multipart/form-data" -F "file=@apks.zip"
+func (p *ContainerUploadProxy) HandleInstallApks(w http.ResponseWriter, r *http.Request) {
+	containerName := chi.URLParam(r, "name")
+	if msg := p.checkAccess(r, containerName); msg != "" {
+		jsonError(w, msg, 403)
+		return
+	}
+	port := containerAPIPort(p.hub, containerName)
+	if port == 0 {
+		jsonError(w, "找不到容器", 404)
+		return
+	}
+
+	// 流式读取 multipart，找到 file 字段
+	reader, err := r.MultipartReader()
+	if err != nil {
+		jsonError(w, "文件解析失败: "+err.Error(), 400)
+		return
+	}
+	var part *multipart.Part
+	for {
+		p, err := reader.NextPart()
+		if err != nil {
+			jsonError(w, "缺少文件", 400)
+			return
+		}
+		if p.FormName() == "file" {
+			part = p
+			break
+		}
+		p.Close()
+	}
+	defer part.Close()
+
+	filename := part.FileName()
+	log.Printf("[InstallApks] 容器 %s: 上传 %s → :%d/installapks", containerName, filename, port)
+
+	// 构建 multipart 转发（流式 pipe，不缓存整个文件到内存）
+	pr, pw := io.Pipe()
+	writer := multipart.NewWriter(pw)
+	go func() {
+		defer pw.Close()
+		dst, err := writer.CreateFormFile("file", filename)
+		if err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		if _, err := io.Copy(dst, part); err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		writer.Close()
+	}()
+
+	// 安装耗时较长：无超时 streamClient + ctx 兜底（30 分钟）
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf("http://127.0.0.1:%d/installapks", port), pr)
+	if err != nil {
+		jsonError(w, "请求创建失败", 500)
+		return
+	}
+	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := p.hub.streamClient.Do(httpReq)
+	if err != nil {
+		jsonError(w, "容器未响应: "+err.Error(), 502)
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	log.Printf("[InstallApks] 容器 %s 响应 HTTP %d: %s", containerName, resp.StatusCode, truncateStr(string(respBody), 500))
+
+	// 透传状态码和响应体（JSON 或 SSE 文本）
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(resp.StatusCode)
+	w.Write(respBody)
 }
 
 // autoInstallAPK 上传完成后通过 exec 在容器内执行 pm install

@@ -15,6 +15,7 @@
           @s5proxy="openS5Proxy"
           @switch-model="openSwitchModel"
           @batch-upload="openBatchUpload"
+          @install-apks="openInstallApks"
         />
         <!-- 方块网格 -->
         <SlotGrid ref="slotGridRef" :max-slots="maxSlots" @selection-change="onSelectionChange" />
@@ -243,6 +244,48 @@
           @click="doBatchUpload">开始上传（{{ batchSelectedFiles.length }} 个文件 × {{ batchUploadContainers.length }} 个容器）</el-button>
       </template>
     </el-dialog>
+
+    <!-- 上传APKS弹窗 -->
+    <el-dialog v-model="apksVisible" title="上传 APKS（批量安装 APK）" width="600px" destroy-on-close>
+      <div style="margin-bottom: 12px">
+        <span style="color: #b0b0b0">将 apks.zip 安装到以下容器：</span>
+        <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px">
+          <el-tag v-for="c in apksContainers" :key="c.name" size="small"
+            :type="apksResult[c.name]?.success ? 'success' : apksResult[c.name]?.fail ? 'danger' : 'info'">
+            {{ device.displayName(c.name) }}
+            <span v-if="apksResult[c.name]?.success"> ✓</span>
+            <span v-if="apksResult[c.name]?.fail"> ✗</span>
+            <span v-if="apksResult[c.name]?.uploading" style="color: #409eff"> ↑</span>
+          </el-tag>
+        </div>
+      </div>
+      <el-upload
+        ref="apksUploadRef"
+        drag
+        accept=".zip"
+        :limit="1"
+        :auto-upload="false"
+        :on-change="onApksChange"
+        :on-remove="() => { apksFile = null }"
+        :on-exceed="() => ElMessage.warning('只能选择一个文件，请先移除已选文件')"
+      >
+        <el-icon style="font-size: 40px; color: #909399"><UploadFilled /></el-icon>
+        <div class="el-upload__text">拖拽 apks.zip 到此处，或<em>点击选择</em></div>
+      </el-upload>
+      <div v-if="apksUploading" style="margin-top: 12px">
+        <el-progress :percentage="apksProgress.total ? Math.round(apksProgress.done / apksProgress.total * 100) : 0"
+          :status="apksProgress.fail > 0 ? 'exception' : undefined" />
+        <div style="color: #b0b0b0; font-size: 12px; margin-top: 4px">
+          {{ apksProgress.done }} / {{ apksProgress.total }}
+          <span v-if="apksProgress.fail > 0" style="color: #f56c6c">（{{ apksProgress.fail }} 失败）</span>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="apksVisible = false">{{ apksUploading ? '关闭' : '取消' }}</el-button>
+        <el-button type="primary" :disabled="!apksFile || apksUploading" :loading="apksUploading"
+          @click="doInstallApks">开始安装（{{ apksContainers.length }} 个容器）</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -262,6 +305,7 @@ import VpcManageTab from '../components/android/VpcManageTab.vue'
 import ContainerProjection from '../components/android/ContainerProjection.vue'
 import ContainerTerminal from '../components/android/ContainerTerminal.vue'
 import { reactive } from 'vue'
+import { UploadFilled } from '@element-plus/icons-vue'
 import api from '../api/index.js'
 
 const auth = useAuthStore()
@@ -657,6 +701,74 @@ async function doBatchUpload() {
     ElMessage.success(`全部上传成功（${containers.length} 个容器 × ${files.length} 个文件）`)
   } else {
     ElMessage.warning(`上传完成：${total - fail} 成功，${fail} 失败`)
+  }
+}
+
+// ===== 上传APKS =====
+const apksVisible = ref(false)
+const apksUploadRef = ref(null)
+const apksFile = ref(null)
+const apksUploading = ref(false)
+const apksContainers = ref([])
+const apksResult = reactive({}) // name -> { uploading / success / fail }
+const apksProgress = reactive({ total: 0, done: 0, fail: 0 })
+
+function openInstallApks(containers) {
+  if (!containers || !containers.length) return
+  apksContainers.value = containers
+  apksFile.value = null
+  Object.keys(apksResult).forEach(k => delete apksResult[k])
+  Object.assign(apksProgress, { total: 0, done: 0, fail: 0 })
+  apksVisible.value = true
+}
+
+function onApksChange(file) {
+  if (!file.name.toLowerCase().endsWith('.zip')) {
+    ElMessage.error('请选择包含多个 APK 的 .zip 压缩包')
+    apksUploadRef.value?.clearFiles()
+    apksFile.value = null
+    return
+  }
+  apksFile.value = file.raw
+}
+
+// 上传 zip 到单个容器（Promise 包装 XHR）
+function uploadApksToContainer(ct) {
+  return new Promise((resolve) => {
+    const form = new FormData()
+    form.append('file', apksFile.value)
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `/api/container/${encodeURIComponent(ct.name)}/install-apks`)
+    xhr.setRequestHeader('Authorization', 'Bearer ' + (auth.token || localStorage.getItem('token')))
+    xhr.onload = () => resolve(xhr.status >= 200 && xhr.status < 400)
+    xhr.onerror = () => resolve(false)
+    xhr.send(form)
+  })
+}
+
+async function doInstallApks() {
+  if (!apksFile.value || !apksContainers.value.length) return
+  apksUploading.value = true
+  const containers = apksContainers.value
+  Object.assign(apksProgress, { total: containers.length, done: 0, fail: 0 })
+  let fail = 0
+  for (const ct of containers) {
+    apksResult[ct.name] = { uploading: true }
+    const ok = await uploadApksToContainer(ct)
+    if (ok) {
+      apksResult[ct.name] = { success: true }
+    } else {
+      apksResult[ct.name] = { fail: true }
+      fail++
+    }
+    apksProgress.done++
+    apksProgress.fail = fail
+  }
+  apksUploading.value = false
+  if (fail === 0) {
+    ElMessage.success(`全部安装成功（${containers.length} 个容器）`)
+  } else {
+    ElMessage.warning(`安装完成：${containers.length - fail} 成功，${fail} 失败`)
   }
 }
 </script>

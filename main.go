@@ -117,6 +117,7 @@ func main() {
 		r.Post("/api/container/{name}/push-upload", uploadProxy.HandlePushUpload)
 		r.Post("/api/container/{name}/cert", uploadProxy.HandleCert)
 		r.Post("/api/container/{name}/keybox", uploadProxy.HandleKeybox)
+		r.Post("/api/container/{name}/install-apks", uploadProxy.HandleInstallApks)
 
 		// 容器导出下载
 		exportHandler := &ContainerExportHandler{auth: authService, hub: wsHub}

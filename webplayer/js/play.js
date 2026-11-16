@@ -23,6 +23,69 @@
     };
 })();
 
+// 修复输入法候选框出现在屏幕左上角：
+// SDK 把 #input_box 定位到 (-1000,-1000) 屏幕外并强制保持焦点，
+// IME 拼音串/候选词窗口锚定到该插入符位置后被浏览器钳制到视口左上角。
+// 处理方式：把输入框移回视口内（画面底部边缘）并完全透明，
+// 平时看不到任何输入条，打中文时输入法候选窗临时浮在底部，选字后消失。
+// 注意：不能 display:none，必须保持可聚焦，否则 IME 无锚点又会飘回左上角。
+(function() {
+    function repositionInputBox() {
+        var box = document.getElementById('input_box');
+        if (!box) return;
+        box.style.position = 'fixed';
+        box.style.top = 'auto';
+        box.style.left = '0';
+        box.style.bottom = '0';
+        box.style.width = '60%';
+        box.style.height = '24px';
+        box.style.margin = '0';
+        box.style.padding = '0';
+        box.style.zIndex = '200011';
+        // 完全透明 + 不拦截鼠标事件，不影响投屏画面操作
+        box.style.opacity = '0';
+        box.style.pointerEvents = 'none';
+        box.style.overflow = 'hidden';
+        var input = document.getElementById('input_text');
+        if (input) {
+            input.style.width = '100%';
+            input.style.height = '24px';
+            input.style.border = 'none';
+            input.style.outline = 'none';
+            input.style.background = 'transparent';
+            input.style.color = 'transparent';
+            input.style.caretColor = 'transparent';
+            input.style.boxSizing = 'border-box';
+        }
+        var go = document.getElementById('btn_go');
+        if (go) go.style.display = 'none';
+    }
+    if (typeof LGAIR_UI !== 'undefined' && LGAIR_UI.create_input) {
+        var _origCreateInput = LGAIR_UI.create_input;
+        LGAIR_UI.create_input = function() {
+            var ret = _origCreateInput.apply(this, arguments);
+            repositionInputBox();
+            return ret;
+        };
+    }
+})();
+
+// 拦截 iframe 内 Ctrl+V 粘贴：直接从 paste 事件读取 clipboardData 并送入安卓。
+// 不依赖隐藏输入框接收粘贴结果，也不需要 clipboard 读权限（HTTP 环境可用）。
+// 中文会经 send_input_txt 补丁走父窗口 clipboard:paste 链路。
+(function() {
+    document.addEventListener('paste', function(e) {
+        var clip = e.clipboardData || window.clipboardData;
+        if (!clip) return;
+        var text = clip.getData ? clip.getData('text') : '';
+        if (!text) return;
+        e.preventDefault(); // 阻止插入隐藏输入框触发 input 事件导致重复发送
+        if (window.h5_lgair && window.h5_lgair.send_input_txt) {
+            window.h5_lgair.send_input_txt(text);
+        }
+    }, true);
+})();
+
 // 滚轮滚动状态
 var wheelState = {
     accumulatedDelta: 0,

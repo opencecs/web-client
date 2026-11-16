@@ -386,12 +386,21 @@ function onClipboardKey(e) {
   if (!e.ctrlKey && !e.metaKey) return
 
   if (e.code === 'KeyV' && !e.shiftKey) {
-    // Ctrl+V: 电脑剪贴板 → 安卓（通过 HTTP API 设置剪贴板 + 触发粘贴，绕过 WebRTC KEYTEXT 中文乱码）
+    // 焦点在输入框/文本域（如短信弹窗）时不劫持，保持浏览器默认粘贴
+    const t = e.target
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+    // Ctrl+V: 电脑剪贴板 → 安卓（通过 HTTP API 设置剪贴板 + 触发粘贴）
     e.preventDefault()
-    navigator.clipboard.readText().then(text => {
-      if (!text) return
-      device.request('clipboard:paste', { name: props.container.name, text }).catch(() => {})
-    }).catch(() => {})
+    if (navigator.clipboard?.readText) {
+      navigator.clipboard.readText().then(text => {
+        if (!text) return
+        device.request('clipboard:paste', { name: props.container.name, text }).catch(() => {})
+      }).catch(() => showPasteHint())
+    } else {
+      // HTTP 环境无 clipboard API：剪贴板只能在 paste 事件里读取，
+      // 提示用户点击投屏画面后再按 Ctrl+V（由 iframe 内 paste 监听接管）
+      showPasteHint()
+    }
   } else if (e.code === 'KeyX' && e.shiftKey) {
     // Ctrl+Shift+X: 安卓剪贴板 → 电脑剪贴板
     e.preventDefault()
@@ -407,6 +416,14 @@ function onClipboardKey(e) {
       }
     }).catch(() => {})
   }
+}
+
+// HTTP 环境下父窗口读不到剪贴板，提示用户把焦点放进投屏画面
+let pasteHintTimer = null
+function showPasteHint() {
+  document.title = '请先点击投屏画面，再按 Ctrl+V'
+  if (pasteHintTimer) clearTimeout(pasteHintTimer)
+  pasteHintTimer = setTimeout(() => { document.title = 'myt-panel' }, 2500)
 }
 
 // 接收 iframe 内 Ctrl+V 的粘贴请求（SDK 的 send_input_txt 中文乱码，改走 HTTP API）

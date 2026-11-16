@@ -72,20 +72,18 @@ func (c *WSClient) handleProxyAction(req WSRequest) {
 
 	case "clipboard:set":
 		text := getStr(req.Data, "text")
-		// POST + JSON UTF-8 body 传中文，比 URL 编码更可靠
-		c.proxyRequest(req, port, "POST", "/clipboard", map[string]interface{}{
-			"cmd":  "2",
-			"text": text,
-		})
+		// 容器只支持 GET + URL 参数写剪贴板（POST /clipboard 返回 200 但不生效，已实测）
+		c.proxyRequest(req, port, "GET", "/clipboard?cmd=2&text="+url.QueryEscape(text), nil)
 
 	case "clipboard:paste":
-		// 设置安卓剪贴板后自动触发粘贴（绕过 WebRTC KEYTEXT 中文乱码）
+		// 设置安卓剪贴板后自动触发粘贴
 		text := getStr(req.Data, "text")
 		if text == "" {
 			c.sendResponse(req.ID, false, "文本为空", nil)
 			return
 		}
-		// 1) 通过容器 HTTP API 设置剪贴板（GET + URL 参数，容器端只支持此方式）
+		// 1) GET + URL 参数设置剪贴板（实测中文 UTF-8 百分号编码写入/读回无损；
+		//    POST /clipboard 返回 200 但不生效，不能用）
 		clipboardURL := fmt.Sprintf("/clipboard?cmd=2&text=%s", url.QueryEscape(text))
 		c.proxyRequest(req, port, "GET", clipboardURL, nil)
 		// 2) 延迟后通过 exec 触发粘贴
@@ -112,6 +110,19 @@ func (c *WSClient) handleProxyAction(req WSRequest) {
 			}
 			resp.Body.Close()
 			log.Printf("[ClipboardPaste] 容器 %s 触发粘贴 (HTTP %d)", name, resp.StatusCode)
+			// 3) 粘贴完成后清空云机剪贴板，避免输入内容残留（写入空串即清空，已实测）
+			time.Sleep(800 * time.Millisecond)
+			clearReq, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:%d/clipboard?cmd=2&text=", port), nil)
+			if err != nil {
+				return
+			}
+			clearResp, err := client.Do(clearReq)
+			if err != nil {
+				log.Printf("[ClipboardPaste] 容器 %s 清空剪贴板失败: %v", name, err)
+				return
+			}
+			clearResp.Body.Close()
+			log.Printf("[ClipboardPaste] 容器 %s 剪贴板已清空", name)
 		}()
 
 	case "android:shake":

@@ -89,7 +89,7 @@ func (d *DeviceService) HandleMirrorList(w http.ResponseWriter, r *http.Request)
 		if img.OsVer != "and14" && img.OsVer != "and16" {
 			continue
 		}
-		if !matchDeviceType(img.TType2, deviceModel) {
+		if !matchDeviceType(img.TType2, deviceModel, d.getDeviceID()) {
 			continue
 		}
 		// 排除 dev 版本镜像
@@ -134,16 +134,32 @@ func fetchMirrorList() ([]MirrorImage, error) {
 }
 
 // matchDeviceType 判断镜像是否支持当前设备
-func matchDeviceType(ttype2 []string, deviceModel string) bool {
+// 优先按设备 ID 首字母判断系列（P 系列设备 ID 以 p 开头，R/C/Q 同理），
+// 型号匹配只作 ID 缺失时的兜底，因为型号包含关系不可靠（如 r1p_v3 属 P 系列但包含 "r1"）
+func matchDeviceType(ttype2 []string, deviceModel, deviceID string) bool {
 	var needTag string
-	if strings.Contains(deviceModel, "p1") {
+	switch {
+	case strings.HasPrefix(deviceID, "p"):
 		needTag = "p1_v3"
-	} else if strings.Contains(deviceModel, "r1s") || strings.Contains(deviceModel, "r1") {
+	case strings.HasPrefix(deviceID, "r"):
 		needTag = "r1s_v3"
-	} else if strings.Contains(deviceModel, "c1") {
+	case strings.HasPrefix(deviceID, "c"):
 		needTag = "c1_v3"
-	} else {
+	case strings.HasPrefix(deviceID, "q"):
 		needTag = "q1_v3"
+	default:
+		// 设备 ID 缺失时按型号兜底（r1p 必须先于 r1 判断）
+		m := strings.ToLower(deviceModel)
+		switch {
+		case strings.Contains(m, "r1p") || strings.Contains(m, "p1"):
+			needTag = "p1_v3"
+		case strings.Contains(m, "r1s") || strings.Contains(m, "r1q") || strings.Contains(m, "r1"):
+			needTag = "r1s_v3"
+		case strings.Contains(m, "c1"):
+			needTag = "c1_v3"
+		default:
+			needTag = "q1_v3"
+		}
 	}
 
 	for _, t := range ttype2 {
@@ -152,6 +168,31 @@ func matchDeviceType(ttype2 []string, deviceModel string) bool {
 		}
 	}
 	return false
+}
+
+// getDeviceID 从缓存中获取设备 ID（deviceId 字段）
+func (d *DeviceService) getDeviceID() string {
+	d.cacheMu.RLock()
+	data := d.cachedInfo
+	d.cacheMu.RUnlock()
+	if data == nil {
+		return ""
+	}
+	var info struct {
+		Data struct {
+			DeviceId string `json:"deviceId"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(data, &info) == nil && info.Data.DeviceId != "" {
+		return strings.ToLower(info.Data.DeviceId)
+	}
+	var flat struct {
+		DeviceId string `json:"deviceId"`
+	}
+	if json.Unmarshal(data, &flat) == nil {
+		return strings.ToLower(flat.DeviceId)
+	}
+	return ""
 }
 
 // getDeviceModel 从缓存中获取设备型号
@@ -214,7 +255,7 @@ func (d *DeviceService) GetMirrorsJSON() (json.RawMessage, error) {
 		if img.OsVer != "and14" && img.OsVer != "and16" {
 			continue
 		}
-		if !matchDeviceType(img.TType2, deviceModel) {
+		if !matchDeviceType(img.TType2, deviceModel, d.getDeviceID()) {
 			continue
 		}
 		if strings.Contains(strings.ToLower(img.Name), "dev") {
